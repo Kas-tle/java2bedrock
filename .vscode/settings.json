@@ -19,6 +19,6 @@
         "editor.defaultFormatter": "vscode.typescript-language-features",
         "editor.tabSize": 4
     },
-    "typescript.referencesCodeLens.enabled": true,
-    "typescript.referencesCodeLens.showOnAllFunctions": true
+    "typescript.referencesCodeLens.enabled": false,
+    "typescript.referencesCodeLens.showOnAllFunctions": false
 }
