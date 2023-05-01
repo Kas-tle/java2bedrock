@@ -1,8 +1,9 @@
+import { JSONText } from "./jsontext"
+
 export interface Pack {
     pack: {
         pack_format: number,
-        // this can technically also be a raw JSON text object but... meh later
-        description: string
+        description: string | JSONText
     },
     language?: {
         [key: string]: {
