@@ -3,6 +3,8 @@ import path from 'path';
 import { MessageType, statusMessage } from './console';
 import { select, input, confirm } from '@inquirer/prompts';
 import { jsonGetRequest } from './request';
+import { Piston } from '../types/piston';
+import * as files from './files';
 
 export interface Config {
     inputJavaPack: string | null;
@@ -10,6 +12,7 @@ export interface Config {
     atachableMaterial: string | null;
     blockMaterial: string | null;
     defaultAssetVersion: string | null;
+    vanillaClientHash: string | null;
     saveScratch: boolean;
     ignorePathLimit: boolean;
 }
@@ -20,6 +23,7 @@ const defaultConfig: Config = {
     atachableMaterial: null,
     blockMaterial: null,
     defaultAssetVersion: null,
+    vanillaClientHash: null,
     saveScratch: true,
     ignorePathLimit: false
 };
@@ -31,8 +35,7 @@ export async function getConfig(): Promise<Config> {
         return cachedConfig;
     }
     try {
-        const configData = await fs.promises.readFile("config.json", "utf-8");
-        const config = JSON.parse(configData);
+        const config = await files.parseJsonFile<Config>(files.absolutePath('config.json'));
         cachedConfig = config;
         return config;
     } catch (err) {
@@ -62,23 +65,7 @@ async function promptForConfig(): Promise<Config> {
         });
     }
 
-    interface PistonManifest {
-        latest: {
-            release: string;
-            snapshot: string;
-        };
-        versions: {
-            id: string;
-            type: string;
-            url: string;
-            time: string;
-            releaseTime: string;
-            sha1: string;
-            complianceLevel: number;
-        }[];
-    }
-
-    const pistonManifest: PistonManifest = await jsonGetRequest('piston-meta.mojang.com', '/mc/game/version_manifest_v2.json');
+    const pistonManifest: Piston.Manifest = await jsonGetRequest('piston-meta.mojang.com', '/mc/game/version_manifest_v2.json');
 
     const zipFiles = await getExtFiles(process.cwd(), ['.zip']);
 
@@ -86,10 +73,11 @@ async function promptForConfig(): Promise<Config> {
         throw new Error("No zip files found in current directory. Please provide a pack to convert.");
     }
 
-    let inputJavaPack = await select({ 
-        message: "Input Java Pack:",
-        choices: zipFiles
-    });
+    let inputJavaPack = zipFiles.length === 1 ? zipFiles[0].value : 
+        await select({ 
+            message: "Input Java Pack:",
+            choices: zipFiles
+        });
     let bedrockMergePack: string | null = 'None';
     let atachableMaterial: string | null = 'Assign automatically';
     let blockMaterial: string | null = 'Assign automatically';
@@ -181,6 +169,13 @@ async function promptForConfig(): Promise<Config> {
     atachableMaterial = atachableMaterial === 'Assign automatically' ? null : atachableMaterial;
     blockMaterial = blockMaterial === 'Assign automatically' ? null : blockMaterial;
 
+    const vanillaClientHash = pistonManifest.versions.find(version => version.id === defaultAssetVersion)?.sha1;
+    if (!vanillaClientHash) {
+        throw new Error(`Could not find vanilla client url for version ${defaultAssetVersion}`);
+    }
+
+    statusMessage(MessageType.Info, `Using vanilla client url: ${vanillaClientHash}`);
+
     return {
         ...defaultConfig,
         inputJavaPack,
@@ -188,6 +183,7 @@ async function promptForConfig(): Promise<Config> {
         atachableMaterial,
         blockMaterial,
         defaultAssetVersion,
+        vanillaClientHash,
         saveScratch,
         ignorePathLimit
     };
