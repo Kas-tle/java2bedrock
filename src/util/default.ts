@@ -8,12 +8,12 @@ import AdmZip from 'adm-zip';
 import { MessageType, statusMessage } from './console';
 import * as progress from './progress';
 
-export async function cacheVanillaAssets(verstionUrl: string, version: string, appDataPath: string): Promise<void> {
+export async function cacheVanillaAssets(verstionUrl: string, version: string, appDataPath: string): Promise<AdmZip> {
     const localAssetPath = path.join(appDataPath, 'default_assets', version, `${version}.zip`);
     
     if (fs.existsSync(localAssetPath)) {
         statusMessage(MessageType.Info, `Found cached assets for version ${version}`);
-        return;
+        return new AdmZip(localAssetPath);
     }
 
     const versionJson: Piston.Version = await request.jsonGetRequest(verstionUrl);
@@ -42,7 +42,7 @@ export async function cacheVanillaAssets(verstionUrl: string, version: string, a
             archives.insertInZip(localAssetPath, assets);
 
             statusMessage(MessageType.Info, `Found hashed assets in minecraft directory for version ${version}`);
-            return;
+            return new AdmZip(localAssetPath);
         }
     }
 
@@ -69,4 +69,5 @@ export async function cacheVanillaAssets(verstionUrl: string, version: string, a
     bar.stop();
 
     archives.insertRawInZip(localAssetPath, assets);
+    return new AdmZip(localAssetPath);
 }

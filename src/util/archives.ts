@@ -1,20 +1,16 @@
 import AdmZip from 'adm-zip';
 import path from 'path';
 
-export function listFilePathsInZip(zipPaths: string[], targetFolder: string, extension: string = ''): string[] {
+export function listFilePathsInZip(zip: AdmZip, targetFolder: string, extension: string = ''): string[] {
     let filePaths: string[] = [];
+    const zipEntries = zip.getEntries();
 
-    for (const zipPath of zipPaths) {
-        const zip = new AdmZip(zipPath);
-        const zipEntries = zip.getEntries();
+    for (const zipEntry of zipEntries) {
+        // Normalize file paths to have forward slashes (useful for cross-platform consistency)
+        const normalizedEntryName = zipEntry.entryName.replace(/\\/g, '/');
 
-        for (const zipEntry of zipEntries) {
-            // Normalize file paths to have forward slashes (useful for cross-platform consistency)
-            const normalizedEntryName = zipEntry.entryName.replace(/\\/g, '/');
-
-            if (normalizedEntryName.startsWith(targetFolder) && normalizedEntryName.endsWith(extension)) {
-                filePaths.push(normalizedEntryName);
-            }
+        if (normalizedEntryName.startsWith(targetFolder) && normalizedEntryName.endsWith(extension)) {
+            filePaths.push(normalizedEntryName);
         }
     }
 

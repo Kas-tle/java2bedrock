@@ -6,6 +6,7 @@ import { MessageType, statusMessage } from "./src/util/console";
 import * as files from './src/util/files';
 import getAppDataPath from "appdata-path";
 import { cacheVanillaAssets } from './src/util/default';
+import { generateMappings } from './src/util/mappings';
 
 async function main(): Promise<void> {
     // Needed for exit handler
@@ -17,7 +18,8 @@ async function main(): Promise<void> {
     files.ensureDefaultDirectories(appDataPath);
     const config = await getConfig();
 
-    await cacheVanillaAssets(config.vanillaClientManifest!, config.defaultAssetVersion!, appDataPath);
+    const defaultAssetsZip = await cacheVanillaAssets(config.vanillaClientManifest!, config.defaultAssetVersion!, appDataPath);
+    await generateMappings(appDataPath, config.defaultAssetVersion!, defaultAssetsZip);
 
     // Scan predicates from pack
     // Only look in files that are overlap of [default_assets/.../items/*.json] and [input_pack/.../items/*.json]

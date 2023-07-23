@@ -85,9 +85,8 @@
         "white_candle_lit",
         "yellow_candle_lit"
     ],
-    "effect": [
-        "dither"
-    ],
+    "colormap": [],
+    "effect": null,
     "entity": [
         "bee/bee_stinger",
         "boat/cherry",
@@ -151,6 +150,8 @@
         "rain",
         "snow"
     ],
+    "font": null,
+    "gui": null,
     "item": [
         "acacia_hanging_sign",
         "bamboo_chest_raft",
@@ -369,5 +370,10 @@
         "unknown_server",
         "vignette",
         "white"
-    ]
+    ],
+    "mob_effect": null,
+    "models": [],
+    "painting": null,
+    "particle": null,
+    "trims": []
 }
