@@ -1,18 +1,31 @@
-import axios, { AxiosResponse, ResponseType } from "axios";
+import axios, { AxiosProgressEvent, AxiosResponse, ResponseType } from "axios";
 import { getErrorMessage } from "./error";
 import { MessageType, statusMessage } from "./console";
+import path from "path";
+import * as progress from './progress';
 
 
-export async function getRequest(domain: string, url: string, headers: any = undefined, responseType: ResponseType | undefined = undefined): Promise<AxiosResponse> {
+export async function getRequest(urlString: string, headers: any = undefined, responseType: ResponseType | undefined = undefined, progressBar: boolean = true): Promise<AxiosResponse> {
     const retrySeconds = 5;
     const retryTimes = 5;
     const retryTime = retrySeconds * 1000;
+    const url = new URL(urlString);
 
     let retries = 0;
     while (retries <= retryTimes) {
         try {
-            const response = await axios.get(url, {
-                baseURL: `https://${domain}`,
+            const bar = progress.downloadBar()
+            if (progressBar) {
+                bar.start(100, 0, {prefix: path.basename(urlString)});
+            }
+            const response = await axios.get(url.pathname, {
+                onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
+                    if (progressBar) {
+                        const totalProgress = progressEvent.total ? progressEvent.total : 1;
+                        bar.update(Math.round(((progressEvent.loaded / totalProgress) * 100)));
+                    }
+                },
+                baseURL: `${url.protocol}//${url.host}`,
                 headers: {
                     'User-Agent':  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
                     'Accept-Encoding': 'html',
@@ -21,6 +34,9 @@ export async function getRequest(domain: string, url: string, headers: any = und
                 responseType: responseType,
             });
 
+            if (progressBar) {
+                bar.stop();
+            }
             return response;
         } catch (error: any) {
             if (error.response && error.response.status === 429) {
@@ -52,7 +68,7 @@ export async function getRequest(domain: string, url: string, headers: any = und
                 retries++;
                 await new Promise((resolve) => setTimeout(resolve, retryTime));
             } else {
-                statusMessage(MessageType.Error, `Error making get request to https://${domain}${url}: ${getErrorMessage(error)}`);
+                statusMessage(MessageType.Error, `Error making get request to ${url.href}: ${getErrorMessage(error)}`);
                 throw error;
             }
         }
@@ -61,16 +77,17 @@ export async function getRequest(domain: string, url: string, headers: any = und
     throw new Error('Must exit now!');
 }
 
-export async function jsonGetRequest<T>(domain: string, url: string, headers: any = undefined, responseType: ResponseType | undefined = undefined): Promise<T> {
+export async function jsonGetRequest<T>(urlString: string, headers: any = undefined, responseType: ResponseType | undefined = undefined): Promise<T> {
     const retrySeconds = 5;
     const retryTimes = 5;
     const retryTime = retrySeconds * 1000;
+    const url = new URL(urlString);
 
     let retries = 0;
     while (retries <= retryTimes) {
         try {
-            const { data } = await axios.get<T>(url, {
-                baseURL: `https://${domain}`,
+            const { data } = await axios.get<T>(url.pathname, {
+                baseURL: `${url.protocol}//${url.host}`,
                 headers: {
                     'User-Agent':  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
                     'Accept-Encoding': 'html',
@@ -110,7 +127,7 @@ export async function jsonGetRequest<T>(domain: string, url: string, headers: an
                 retries++;
                 await new Promise((resolve) => setTimeout(resolve, retryTime));
             } else {
-                statusMessage(MessageType.Error, `Error making get request to https://${domain}${url}: ${getErrorMessage(error)}`);
+                statusMessage(MessageType.Error, `Error making get request to ${url.href}: ${getErrorMessage(error)}`);
                 throw error;
             }
         }

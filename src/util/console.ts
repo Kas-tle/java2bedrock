@@ -9,27 +9,27 @@ export enum MessageType {
     Plain = 'plain'
 }
 
-export function statusMessage(type: MessageType, message: string) {
+export function statusMessage(type: MessageType, ...messages: string[]) {
     switch (type) {
         case MessageType.Completion:
-            console.log(chalk.green(`[+] ${chalk.ansi256(246)(message)}`));
+            messages.forEach((message) => console.log(chalk.green(`[+] ${chalk.ansi256(246)(message)}`)));
             break;
         case MessageType.Process:
-            console.log(chalk.yellow(`[•] ${chalk.ansi256(246)(message)}`));
+            messages.forEach((message) => console.log(chalk.yellow(`[•] ${chalk.ansi256(246)(message)}`)));
             break;
         case MessageType.Critical:
-            console.log(chalk.red(`[X] ${chalk.ansi256(246)(message)}`));
+            messages.forEach((message) => console.log(chalk.red(`[X] ${chalk.ansi256(246)(message)}`)));
             break;
         case MessageType.Error:
-            console.log(chalk.red(`[ERROR] ${chalk.ansi256(246)(message)}`));
+            messages.forEach((message) => console.log(chalk.red(`[ERROR] ${chalk.ansi256(246)(message)}`)));
             break;
         case MessageType.Info:
-            console.log(chalk.blue(`[i] ${chalk.ansi256(246)(message)}`));
+            messages.forEach((message) => console.log(chalk.blue(`[i] ${chalk.ansi256(246)(message)}`)));
             break;
         case MessageType.Plain:
-            console.log(chalk.gray(message));
+            messages.forEach((message) => console.log(chalk.gray(message)));
             break;
         default:
-            console.log(chalk.gray(message));
+            messages.forEach((message) => console.log(chalk.gray(message)));
     }
 }

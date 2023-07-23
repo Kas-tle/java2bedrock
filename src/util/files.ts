@@ -16,6 +16,13 @@ export async function ensureDirectory(directory: string) {
     }
 }
 
+export async function ensureDefaultDirectories(appDataPath: string) {
+    ensureDirectory(path.join(appDataPath, 'default_assets'));
+    ensureDirectory('./target/scratch/input');
+    ensureDirectory('./target/scratch/output');
+    ensureDirectory('./target/scratch/default');
+}
+
 export function writeJsonFile(filename: string, data: any): void {
     try {
         const filePath = path.join(process.cwd(), filename);

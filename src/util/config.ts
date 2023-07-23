@@ -12,7 +12,7 @@ export interface Config {
     atachableMaterial: string | null;
     blockMaterial: string | null;
     defaultAssetVersion: string | null;
-    vanillaClientHash: string | null;
+    vanillaClientManifest: string | null;
     saveScratch: boolean;
     ignorePathLimit: boolean;
 }
@@ -23,7 +23,7 @@ const defaultConfig: Config = {
     atachableMaterial: null,
     blockMaterial: null,
     defaultAssetVersion: null,
-    vanillaClientHash: null,
+    vanillaClientManifest: null,
     saveScratch: true,
     ignorePathLimit: false
 };
@@ -39,10 +39,13 @@ export async function getConfig(): Promise<Config> {
         cachedConfig = config;
         return config;
     } catch (err) {
-        statusMessage(MessageType.Info, "No config file found. Please provide the required config values");
-        statusMessage(MessageType.Info, "Simply input the value and press enter to proceed to the next value");
-        statusMessage(MessageType.Info, "If you need help, please visit https://github.com/Kas-tle/java2bedrock");
-        statusMessage(MessageType.Info, "Press Ctrl+C to cancel");
+        statusMessage(
+            MessageType.Info, 
+            "No config file found. Please provide the required config values",
+            "Simply input the value and press enter to proceed to the next value",
+            "If you need help, please visit https://github.com/Kas-tle/java2bedrock",
+            "Press Ctrl+C to cancel"
+        );
         statusMessage(MessageType.Plain, "");
         const newConfig = await promptForConfig();
         await fs.promises.writeFile("config.json", JSON.stringify(newConfig, null, 4));
@@ -65,7 +68,7 @@ async function promptForConfig(): Promise<Config> {
         });
     }
 
-    const pistonManifest: Piston.Manifest = await jsonGetRequest('piston-meta.mojang.com', '/mc/game/version_manifest_v2.json');
+    const pistonManifest: Piston.Manifest = await jsonGetRequest('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
 
     const zipFiles = await getExtFiles(process.cwd(), ['.zip']);
 
@@ -88,15 +91,17 @@ async function promptForConfig(): Promise<Config> {
     let confirmed = false;
 
     while (!confirmed) {
-        statusMessage(MessageType.Plain, '');
-        statusMessage(MessageType.Plain, `Input Java Pack: ${inputJavaPack}`);
-        statusMessage(MessageType.Plain, `Bedrock Merge Pack: ${bedrockMergePack}`);
-        statusMessage(MessageType.Plain, `Atachable Material: ${atachableMaterial}`);
-        statusMessage(MessageType.Plain, `Block Material: ${blockMaterial}`);
-        statusMessage(MessageType.Plain, `Default Asset Version: ${defaultAssetVersion}`);
-        statusMessage(MessageType.Plain, `Save Scratch: ${saveScratch}`);
-        statusMessage(MessageType.Plain, `Ignore Path Limit: ${ignorePathLimit}`);
-        statusMessage(MessageType.Plain, '');
+        statusMessage(
+            MessageType.Plain, 
+            `Input Java Pack: ${inputJavaPack}`,
+            `Bedrock Merge Pack: ${bedrockMergePack}`,
+            `Atachable Material: ${atachableMaterial}`,
+            `Block Material: ${blockMaterial}`,
+            `Default Asset Version: ${defaultAssetVersion}`,
+            `Save Scratch: ${saveScratch}`,
+            `Ignore Path Limit: ${ignorePathLimit}`,
+            ''
+        );
 
         confirmed = await confirm({ message: 'Are these settings correct:' });
 
@@ -169,12 +174,12 @@ async function promptForConfig(): Promise<Config> {
     atachableMaterial = atachableMaterial === 'Assign automatically' ? null : atachableMaterial;
     blockMaterial = blockMaterial === 'Assign automatically' ? null : blockMaterial;
 
-    const vanillaClientHash = pistonManifest.versions.find(version => version.id === defaultAssetVersion)?.sha1;
-    if (!vanillaClientHash) {
+    const vanillaClientManifest = pistonManifest.versions.find(version => version.id === defaultAssetVersion)?.url;
+    if (!vanillaClientManifest) {
         throw new Error(`Could not find vanilla client url for version ${defaultAssetVersion}`);
     }
 
-    statusMessage(MessageType.Info, `Using vanilla client url: ${vanillaClientHash}`);
+    statusMessage(MessageType.Info, `Using vanilla client url: ${vanillaClientManifest}`);
 
     return {
         ...defaultConfig,
@@ -183,7 +188,7 @@ async function promptForConfig(): Promise<Config> {
         atachableMaterial,
         blockMaterial,
         defaultAssetVersion,
-        vanillaClientHash,
+        vanillaClientManifest,
         saveScratch,
         ignorePathLimit
     };
