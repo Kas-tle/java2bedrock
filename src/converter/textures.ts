@@ -6,13 +6,16 @@ import AdmZip from 'adm-zip';
 import { Mappings } from '../types/mappings';
 import * as archives from '../util/archives';
 import path from 'path';
+import { MessageType, statusMessage } from '../util/console';
 
-export async function convertTextures(inputAssets: AdmZip, defaultAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
+export async function convertTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
+    await convertMappedVanillaTextures(inputAssets, convertedAssets, textureMappings);
 
-    await convertVanillaTextures(inputAssets, defaultAssets, textureMappings);
+    // logic for special conversion (e.g. stitching, splitting, etc.)
+    // ...
 }
 
-async function convertVanillaTextures(inputAssets: AdmZip, defaultAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
+async function convertMappedVanillaTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
     const validTextureShortPaths: string[] = [];
     const javaTexturePath = 'assets/minecraft/textures/';
     const bedrockTexturePath = 'textures/';
@@ -27,14 +30,16 @@ async function convertVanillaTextures(inputAssets: AdmZip, defaultAssets: AdmZip
         .replace('.png', ''));
     const validInputTextureShortPaths = inputAssetsShortPaths.filter(p => validTextureShortPaths.includes(p));
 
-    const texturesToMove: Record<string, string> = {};
+    const texturesToMove: {file: string; path: string}[] = [];
     for (const shortPath of validInputTextureShortPaths) {
         const [prefix, ...rest] = shortPath.split('/');
         const newPath = rest.join('/');
-        texturesToMove[
-            path.join(javaTexturePath, `${shortPath}.png`)
-        ] = path.join(bedrockTexturePath, textureMappings.root[prefix]!, `${textureMappings.nested[prefix][newPath]}.png`);
+        texturesToMove.push({
+            file: path.join(javaTexturePath, `${shortPath}.png`), 
+            path: path.join(bedrockTexturePath, textureMappings.root[prefix]!, `${textureMappings.nested[prefix][newPath]}.png`)
+        });
     }
 
-    console.log(texturesToMove);
+    archives.transferFromZip(inputAssets, convertedAssets, texturesToMove);
+    statusMessage(MessageType.Info, `Converted ${texturesToMove.length} mapped vanilla textures`);
 }

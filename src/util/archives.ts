@@ -51,3 +51,21 @@ export function insertRawInZip(zip: AdmZip, files: {file: string, data: Buffer}[
         zip.addFile(file.file, file.data);
     }
 }
+
+export function transferFromZip(sourceZip: AdmZip, targetZip: AdmZip, files: {file: string, path: string}[]): void {
+    // Add each file to the zip
+    for (const file of files) {
+        const sourceEntry = sourceZip.getEntry(file.file);
+        if (sourceEntry) {
+            targetZip.addFile(file.path, sourceEntry.getData());
+        }
+    }
+}
+
+export function parseJsonFromZip<T>(zip: AdmZip, filePath: string): Promise<T> {
+    const entry = zip.getEntry(filePath);
+    if (!entry) {
+        return Promise.reject(`Could not find file ${filePath} in zip`);
+    }
+    return JSON.parse(entry.getData().toString());
+}
