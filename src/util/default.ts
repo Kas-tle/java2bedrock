@@ -10,6 +10,7 @@ import * as progress from './progress';
 
 export async function cacheVanillaAssets(verstionUrl: string, version: string, appDataPath: string): Promise<AdmZip> {
     const localAssetPath = path.join(appDataPath, 'default_assets', version, `${version}.zip`);
+    let localAssetZip: AdmZip;
     
     if (fs.existsSync(localAssetPath)) {
         statusMessage(MessageType.Info, `Found cached assets for version ${version}`);
@@ -22,7 +23,7 @@ export async function cacheVanillaAssets(verstionUrl: string, version: string, a
     
     if (fs.existsSync(minecraftJarPath)) {
         files.ensureDirectory(path.dirname(localAssetPath));
-        archives.subZip(new AdmZip(minecraftJarPath), localAssetPath, 'assets');
+        localAssetZip = archives.subZip(new AdmZip(minecraftJarPath), 'assets');
         statusMessage(MessageType.Info, `Found assets in minecraft directory for version ${version}`);
 
         const assetsIndexFileName = path.basename(versionJson.assetIndex.url);
@@ -39,17 +40,18 @@ export async function cacheVanillaAssets(verstionUrl: string, version: string, a
                         assetsJson.objects[key].hash.substring(0, 2), 
                         assetsJson.objects[key].hash)
                 }));
-            archives.insertInZip(localAssetPath, assets);
+            archives.insertInZip(localAssetZip, assets);
 
             statusMessage(MessageType.Info, `Found hashed assets in minecraft directory for version ${version}`);
-            return new AdmZip(localAssetPath);
+            localAssetZip.writeZip(localAssetPath);
+            return localAssetZip;
         }
     }
 
     statusMessage(MessageType.Info, `Downloading client jar for assets version ${version}:`);
     const clientUrl = versionJson.downloads.client.url;
     const clientJarResponse = await request.getRequest(clientUrl, {}, 'arraybuffer');
-    archives.subZip(new AdmZip(clientJarResponse.data), localAssetPath, 'assets');
+    localAssetZip = archives.subZip(new AdmZip(clientJarResponse.data), 'assets');
     
     statusMessage(MessageType.Info, `Downloading hashed assets for version ${version}:`);
     const assetsJson: Piston.Assets = await request.jsonGetRequest(versionJson.assetIndex.url);
@@ -68,6 +70,7 @@ export async function cacheVanillaAssets(verstionUrl: string, version: string, a
     }
     bar.stop();
 
-    archives.insertRawInZip(localAssetPath, assets);
-    return new AdmZip(localAssetPath);
+    archives.insertRawInZip(localAssetZip, assets);
+    localAssetZip.writeZip(localAssetPath);
+    return localAssetZip;
 }

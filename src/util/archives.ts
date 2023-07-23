@@ -17,7 +17,7 @@ export function listFilePathsInZip(zip: AdmZip, targetFolder: string, extension:
     return filePaths;
 }
 
-export function subZip(sourceZip: AdmZip, targetZipPath: string, folder: string): void {
+export function subZip(sourceZip: AdmZip, folder: string): AdmZip {
     // Read the source zip file
     const sourceEntries = sourceZip.getEntries();
 
@@ -35,32 +35,19 @@ export function subZip(sourceZip: AdmZip, targetZipPath: string, folder: string)
         }
     }
 
-    // Write the new zip file to disk
-    targetZip.writeZip(targetZipPath);
+    return targetZip;
 }
 
-export function insertInZip(zipPath: string, files: {file: string, path: string}[]): void {
-    // Load an existing zip file
-    let zip = new AdmZip(zipPath);
-
+export function insertInZip(zip: AdmZip, files: {file: string, path: string}[]): void {
     // Add each file to the zip
     for (const file of files) {
         zip.addLocalFile(file.file, path.dirname(file.file), path.basename(file.file));
     }
-
-    // Write the changes back to the zip file
-    zip.writeZip(/*overwrite*/zipPath);
 }
 
-export function insertRawInZip(zipPath: string, files: {file: string, data: Buffer}[]): void {
-    // Load an existing zip file
-    let zip = new AdmZip(zipPath);
-
+export function insertRawInZip(zip: AdmZip, files: {file: string, data: Buffer}[]): void {
     // Add each file to the zip
     for (const file of files) {
         zip.addFile(file.file, file.data);
     }
-
-    // Write the changes back to the zip file
-    zip.writeZip(/*overwrite*/zipPath);
 }

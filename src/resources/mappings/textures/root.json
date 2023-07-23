@@ -1,0 +1,17 @@
+{
+    "block": "blocks",
+    "colormap": "colormap",
+    "effect": null,
+    "entity": "entity",
+    "environment": "environment",
+    "font": null,
+    "gui": null,
+    "item": "items",
+    "map": "map",
+    "misc": "misc",
+    "mob_effect": null,
+    "models": "models",
+    "painting": null,
+    "particle": null,
+    "trims": "trims"
+}
