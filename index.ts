@@ -11,6 +11,7 @@ import AdmZip from 'adm-zip';
 import { convertTextures } from './src/converter/textures';
 import path from 'path';
 import { convertManifest } from './src/converter/manifest';
+import { convertItems } from './src/converter/items';
 
 async function main(): Promise<void> {
     // Needed for exit handler
@@ -37,6 +38,10 @@ async function main(): Promise<void> {
 
     // Scan predicates from pack
     // Only look in files that are overlap of [default_assets/.../items/*.json] and [input_pack/.../items/*.json]
+
+    // Items
+    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip);
+
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));
     return;

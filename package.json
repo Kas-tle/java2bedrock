@@ -27,6 +27,7 @@
         "chalk": "4.1.2",
         "chalk-animation": "^2.0.3",
         "cli-progress": "^3.12.0",
+        "minecraft-data": "^3.40.0",
         "minecraft-folder-path": "^1.2.0"
     }
 }

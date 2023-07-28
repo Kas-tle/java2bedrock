@@ -9,7 +9,7 @@ export interface BlockModel {
 
 export interface ItemModel extends BlockModel {
     gui_light?: 'front' | 'side',
-    overrides?: Model.Overrides
+    overrides?: Model.Overrides[]
 }
 
 export namespace Model {
