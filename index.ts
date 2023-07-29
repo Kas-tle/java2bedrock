@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     // Only look in files that are overlap of [default_assets/.../items/*.json] and [input_pack/.../items/*.json]
 
     // Items
-    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip);
+    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, config.defaultAssetVersion!);
 
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));

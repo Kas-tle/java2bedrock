@@ -62,8 +62,11 @@ export function transferFromZip(sourceZip: AdmZip, targetZip: AdmZip, files: {fi
     }
 }
 
-export function parseJsonFromZip<T>(zip: AdmZip, filePath: string): Promise<T> {
+export function parseJsonFromZip<T>(zip: AdmZip, filePath: string, fallbackZip: AdmZip | null = null): Promise<T> {
     const entry = zip.getEntry(filePath);
+    if (!entry && fallbackZip) {
+        return parseJsonFromZip(fallbackZip, filePath);
+    }
     if (!entry) {
         return Promise.reject(`Could not find file ${filePath} in zip`);
     }

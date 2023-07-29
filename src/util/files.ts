@@ -91,3 +91,12 @@ export async function copyFiles(filePaths: string[], targetFolder: string): Prom
 export function absolutePath(filepath: string): string {
     return path.join(process.cwd(), filepath);
 }
+
+export function pathFromModelEntry(entry: string): string {
+    if (entry.includes(':')) {
+        const [namespace, ...modelPath] = entry.split(':');
+        return path.join('assets', namespace, 'models', `${modelPath}.json`);
+    } else {
+        return path.join('assets', 'minecraft', 'models', `${entry}.json`);
+    }
+}

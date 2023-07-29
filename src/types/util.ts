@@ -1,5 +1,3 @@
-import { ItemModel } from "./java/model"
-
 export type Vec4f = [number, number, number, number]
 export type Vec3f = [number, number, number]
 export type Vec2f = [number, number]
@@ -12,15 +10,3 @@ type Enumerate<N extends number, Acc extends number[] = []> = Acc['length'] exte
     : Enumerate<N, [...Acc, Acc['length']]>
 
 export type Range<F extends number, T extends number> = Exclude<Enumerate<T>, Enumerate<F>>
-
-export interface ItemEntry {
-    item: string;
-    bedrock_icon?: string;
-    overrides: {
-        damage?: number;
-        unbreakable?: boolean;
-        custom_model_data?: number;
-    };
-    path: string;
-    model: ItemModel;
-}

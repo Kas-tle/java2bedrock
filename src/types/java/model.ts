@@ -56,15 +56,13 @@ export namespace Model {
         rotation?: 0 | 90 | 180 | 270,
         tintindex?: number
     }
-    
-    export interface Predicate {
+
+    export interface BasePredicate {
         angle?: Range<0, 1>,
         blocking?: 0 | 1,
         broken?: 0 | 1,
         cast?: 0 | 1,
         cooldown?: Range<0, 1>,
-        damage?: Range<0, 1>,
-        damaged?: 0 | 1,
         lefthanded?: 0 | 1,
         pull?: Range<0, 1>,
         pulling?: 0 | 1,
@@ -78,6 +76,11 @@ export namespace Model {
         tooting?: 0 | 1,
         trim_type?: Range<0, 1>,
         brushing?: Range<0, 1>
+    }
+    
+    export interface Predicate extends BasePredicate {
+        damage?: Range<0, 1>,
+        damaged?: 0 | 1,
     }
 
     export interface Overrides {
