@@ -4,7 +4,7 @@ import * as archives from '../util/archives';
 import * as files from '../util/files';
 import { ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
-import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/item";
+import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
 import { MessageType, statusMessage } from "../util/console";
 
 export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string): Promise<void> {
@@ -12,7 +12,9 @@ export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip,
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
     // Scan for predicates
-    const predicates = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version);
+    const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version);
+
+    // Construct texture atlases
 }
 
 async function scanVanillaItems(inputAssets: AdmZip, defaultAssets: AdmZip): Promise<{ path: string, model: ItemModel }[]> {

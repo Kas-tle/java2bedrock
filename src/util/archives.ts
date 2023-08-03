@@ -72,3 +72,14 @@ export function parseJsonFromZip<T>(zip: AdmZip, filePath: string, fallbackZip: 
     }
     return JSON.parse(entry.getData().toString());
 }
+
+export function getBufferFromZip(zip: AdmZip, filePath: string, fallbackZip: AdmZip | null = null): Buffer {
+    const entry = zip.getEntry(filePath);
+    if (!entry && fallbackZip) {
+        return getBufferFromZip(fallbackZip, filePath);
+    }
+    if (!entry) {
+        throw new Error(`Could not find file ${filePath} in zip`);
+    }
+    return entry.getData();
+}
