@@ -3,19 +3,20 @@
 // At the base level, we need some sort of list
 // In here, we will just consider the texture files themselves
 import AdmZip from 'adm-zip';
-import { Mappings } from '../types/mappings';
+import { Mappings, MovedTexture } from '../types/mappings';
 import * as archives from '../util/archives';
 import path from 'path';
 import { MessageType, statusMessage } from '../util/console';
 
-export async function convertTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
-    await convertMappedVanillaTextures(inputAssets, convertedAssets, textureMappings);
+export async function convertTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<MovedTexture[]> {
+    const movedTextures = await convertMappedVanillaTextures(inputAssets, convertedAssets, textureMappings);
 
     // logic for special conversion (e.g. stitching, splitting, etc.)
     // ...
+    return movedTextures;
 }
 
-async function convertMappedVanillaTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<void> {
+async function convertMappedVanillaTextures(inputAssets: AdmZip, convertedAssets: AdmZip, textureMappings: Mappings['textureMappings']): Promise<MovedTexture[]> {
     const validTextureShortPaths: string[] = [];
     const javaTexturePath = 'assets/minecraft/textures/';
     const bedrockTexturePath = 'textures/';
@@ -30,7 +31,7 @@ async function convertMappedVanillaTextures(inputAssets: AdmZip, convertedAssets
         .replace('.png', ''));
     const validInputTextureShortPaths = inputAssetsShortPaths.filter(p => validTextureShortPaths.includes(p));
 
-    const texturesToMove: {file: string; path: string}[] = [];
+    const texturesToMove: MovedTexture[] = [];
     for (const shortPath of validInputTextureShortPaths) {
         const [prefix, ...rest] = shortPath.split('/');
         const newPath = rest.join('/');
@@ -42,4 +43,5 @@ async function convertMappedVanillaTextures(inputAssets: AdmZip, convertedAssets
 
     archives.transferFromZip(inputAssets, convertedAssets, texturesToMove);
     statusMessage(MessageType.Info, `Converted ${texturesToMove.length} mapped vanilla textures`);
+    return texturesToMove;
 }

@@ -7,6 +7,7 @@ export interface ItemEntry {
     overrides: GeyserPredicate;
     path: string;
     model: ItemModel;
+    sprite: boolean;
 }
 
 export interface GeyserPredicate extends Model.BasePredicate {

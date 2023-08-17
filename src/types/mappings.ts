@@ -5,6 +5,11 @@ export interface Mappings {
     };
 }
 
+export interface MovedTexture {
+    file: string; 
+    path: string
+}
+
 export namespace Texture {
     export interface Mappings {
         [key: string]: {[key: string]: string};

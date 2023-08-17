@@ -9,7 +9,7 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     const options = {
         smart: true,
         pot: true,
-        square: true,
+        square: false,
         allowRotation: false,
         tag: false,
         border: 0
@@ -18,16 +18,17 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     const maxPossibleWidth = images.reduce((acc, img) => acc + img.width, 0);
     const maxPossibleHeight = images.reduce((acc, img) => acc + img.height, 0);
 
-    const packer = new MaxRectsPacker(maxPossibleWidth, maxPossibleHeight, 0, options);
+    const packer = new MaxRectsPacker(maxPossibleWidth * 2, maxPossibleHeight * 2, 0, options);
 
-    const rects = images.map(img => new Rectangle(img.width, img.height));
-    packer.addArray(rects);
+    for (const image of images) {
+        packer.add(image.width, image.height, image.path);
+    }
     
     let sprites: sharp.OverlayOptions[] = [];
     let output: SpriteSheet = {
         frames: {},
         meta: {
-            image: 'spritesheet.png',
+            image: outputPath,
             scale: 1,
             size: {
                 w: packer.bins[0].width || 0,
@@ -38,7 +39,8 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
 
     for (let i = 0; i < images.length; i++) {
         const image = images[i];
-        const rect = (packer.bins[0].rects[i] as Rectangle);
+        const rects = packer.bins[0].rects;
+        const rect = (rects.find(rect => rect.data === image.path) || rects[i]);
 
         // Add image frame data to the output object
         output.frames[image.path] = {
@@ -69,6 +71,7 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     // Write the spritesheet to the output zip
     archives.insertRawInZip(convertedAssets, [{ file: outputPath, data: outputBuffer }]);
 
+    console.log(`Created spritesheet ${outputPath}`);
     return output;
 }
 

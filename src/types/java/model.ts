@@ -3,13 +3,14 @@ import { Range, Vec3f } from "../util"
 export interface BlockModel {
     parent?: string,
     ambientocclusion?: boolean,
-    display?: Model.DisplaySettings,
     textures?: Model.Textures
+    elements?: Model.Element[]
 }
 
 export interface ItemModel extends BlockModel {
     gui_light?: 'front' | 'side',
-    overrides?: Model.Overrides[]
+    overrides?: Model.Overrides[],
+    display?: Model.DisplaySettings
 }
 
 export namespace Model {
@@ -46,6 +47,11 @@ export namespace Model {
         shade?: boolean,
         faces?: {
             up?: Face
+            down?: Face
+            north?: Face
+            south?: Face
+            east?: Face
+            west?: Face
         }
     }
     

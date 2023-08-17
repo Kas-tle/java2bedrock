@@ -34,13 +34,13 @@ async function main(): Promise<void> {
     await convertManifest(inputAssetsZip, convertedAssetsZip, mergeAssetsZip);
 
     // Textures
-    await convertTextures(inputAssetsZip, convertedAssetsZip, mappings.textureMappings);
+    const movedTextures = await convertTextures(inputAssetsZip, convertedAssetsZip, mappings.textureMappings);
 
     // Scan predicates from pack
     // Only look in files that are overlap of [default_assets/.../items/*.json] and [input_pack/.../items/*.json]
 
     // Items
-    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, config.defaultAssetVersion!);
+    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, config.defaultAssetVersion!, movedTextures);
 
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));

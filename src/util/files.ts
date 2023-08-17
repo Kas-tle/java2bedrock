@@ -2,7 +2,7 @@ import fs, { promises } from 'fs';
 import path from 'path';
 import { getErrorMessage } from './error';
 import { MessageType, statusMessage } from './console';
-import { error } from 'console';
+import * as crypto from 'crypto';
 
 export async function ensureDirectory(directory: string) {
     try {
@@ -96,7 +96,26 @@ export function pathFromModelEntry(entry: string): string {
     if (entry.includes(':')) {
         const [namespace, ...modelPath] = entry.split(':');
         return path.join('assets', namespace, 'models', `${modelPath}.json`);
-    } else {
-        return path.join('assets', 'minecraft', 'models', `${entry}.json`);
     }
+    return path.join('assets', 'minecraft', 'models', `${entry}.json`);
+}
+
+export function pathFromTextureEntry(entry: string): string {
+    if (entry.includes(':')) {
+        const [namespace, ...texturePath] = entry.split(':');
+        return path.join('assets', namespace, 'textures', `${texturePath}.png`);
+    }
+    return path.join('assets', 'minecraft', 'textures', `${entry}.png`);
+}
+
+export function namespaceEntry(entry: string): string {
+    if(!entry.includes(':')) {
+        return 'minecraft:' + entry;
+    }
+    return entry;
+}
+
+export function arrayHash(array: any[]): string {
+    const jsonString = JSON.stringify(array);
+    return crypto.createHash('sha256').update(jsonString).digest('hex').slice(0, 7);
 }

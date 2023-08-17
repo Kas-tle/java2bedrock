@@ -2,19 +2,24 @@ import AdmZip from "adm-zip";
 import path from 'path';
 import * as archives from '../util/archives';
 import * as files from '../util/files';
-import { ItemModel, Model } from "../types/java/model";
+import { BlockModel, ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
 import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
 import { MessageType, statusMessage } from "../util/console";
+import { MovedTexture } from "../types/mappings";
+import { createSpriteSheet } from "../util/atlases";
+import { SpriteSheet } from "../types/util/atlases";
 
-export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string): Promise<void> {
+export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string, movedTextures: MovedTexture[]): Promise<void> {
     // Scan for vanilla items
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
     // Scan for predicates
     const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version);
 
-    // Construct texture atlases
+    // Construct texture sheets
+    const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets, movedTextures);
+    console.log(sheets);
 }
 
 async function scanVanillaItems(inputAssets: AdmZip, defaultAssets: AdmZip): Promise<{ path: string, model: ItemModel }[]> {
@@ -57,14 +62,45 @@ async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[]
 
                 try {
                     const model = await archives.parseJsonFromZip<ItemModel>(inputAssets, files.pathFromModelEntry(override.model), defaultAssets);
+                    let sprite = false;
+                    if (model.parent != null) {
+                        exit:
+                        while ((model.elements == null || model.textures == null || model.display == null) && model.parent != null) {
+                            // Special parent handling
+                            switch (files.namespaceEntry(model.parent)) {
+                                case 'minecraft:builtin/generated':
+                                    if (model.elements == null) {
+                                        sprite = true;
+                                        break exit;
+                                    }
+                                case 'minecraft:builtin/entity':
+                                    break exit;
+                            }
+
+                            const parentModel: ItemModel = await archives.parseJsonFromZip<ItemModel>(inputAssets, files.pathFromModelEntry(model.parent), defaultAssets);
+                            model.parent = parentModel.parent;
+
+                            if (model.parent == null) {
+                                break;
+                            }
+
+                            model.elements = model.elements ?? parentModel.elements;
+                            model.textures = model.textures ?? parentModel.textures;
+                            model.display = model.display ?? parentModel.display;
+                        }
+                    }
+                    if (!sprite) {
+                        model.textures = validatedTextures(model);
+                    }
                     predicates.push({
                         item,
                         overrides: predicate.build(),
-                        path: vanillaItem.path,
-                        model
+                        path: files.namespaceEntry(override.model),
+                        model,
+                        sprite
                     });
                 } catch (error) {
-                    statusMessage(MessageType.Critical, `Failed to parse model ${override.model} for item ${item}: ${error}`);
+                    statusMessage(MessageType.Critical, `Failed to parse model ${files.namespaceEntry(override.model)} for item ${item}: ${error}`);
                 }
             }
         }
@@ -172,4 +208,78 @@ function handleSpecialPredicates(item: string, version: string, builder: GeyserP
             }
             break;
     }
+}
+
+async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[]): Promise<SpriteSheet[]> {
+    const atlases: string[][] = [];
+    const movedTexturesArr = movedTextures.map(t => t.file);
+    for (const item of predicateItems) {
+        if (item.sprite) {
+            continue;
+        }
+        
+        const itemTextures = new Set(Object.values(item.model.textures ?? {}).map(t => files.pathFromTextureEntry(t)));
+        if (itemTextures.size === 0) {
+            continue;
+        }
+        
+        // Check if any of the textures are contained in an existing atlas or multiple atlases
+
+        const containedAtlases = atlases
+            .map((a, index) => ({ index, textures: a.filter(t => itemTextures.has(t)) }))
+            .filter(a => a.textures.length > 0)
+            .map(a => a.index);
+        
+        if (containedAtlases.length > 0) {
+            // Create a combined atlas from the contained atlases and the item textures
+            const combinedAtlas: Set<string> = new Set();
+            for (const i of containedAtlases) {
+                for (const texture of atlases[i]) {
+                    combinedAtlas.add(texture);
+                }
+            }
+            for (const texture of itemTextures) {
+                combinedAtlas.add(texture);
+            }
+
+            // Remove the contained atlases from the atlases array
+            for (const i of containedAtlases) {
+                atlases.splice(i, 1);
+            }
+
+            // Add the combined atlas to the atlases array
+            atlases.push(Array.from(combinedAtlas).sort());
+        } else if (itemTextures.size === 1) {
+            // If there is only one texture, check if it is contained in the textures we already moved
+            if (movedTexturesArr.includes(itemTextures.values().next().value)) {
+                continue;
+            }
+            atlases.push(Array.from(itemTextures));
+        } else {
+            // Otherwise just create a new atlas
+            atlases.push(Array.from(itemTextures).sort());
+        }
+    }
+
+    // Create sprite sheets from the atlases
+    const sheets: SpriteSheet[] = [];
+    for (const atlas of atlases) {
+        const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, convertedAssets, `textures/item_atlases/${files.arrayHash(atlas)}.png`);
+        sheets.push(sheet);
+    }
+
+    return sheets;
+}
+
+function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
+    const usedTextures = new Set(
+        (model.elements || [])
+            .flatMap(element => Object.values(element.faces || {}))
+            .filter(face => face != null)
+            .map(face => face!.texture.slice(1))
+    );
+    return Object.fromEntries(
+        Object.entries(model.textures || {})
+            .filter(([key]) => usedTextures.has(key))
+    );
 }
