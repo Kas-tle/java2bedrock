@@ -2,6 +2,7 @@ import AdmZip from "adm-zip";
 import path from 'path';
 import * as archives from '../util/archives';
 import * as files from '../util/files';
+import * as progress from '../util/progress';
 import { BlockModel, ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
 import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
@@ -19,7 +20,9 @@ export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip,
 
     // Construct texture sheets
     const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets, movedTextures);
-    console.log(sheets);
+    
+    // Write items
+    await writeItems(predicateItems, sheets, inputAssets, defaultAssets, convertedAssets, movedTextures);
 }
 
 async function scanVanillaItems(inputAssets: AdmZip, defaultAssets: AdmZip): Promise<{ path: string, model: ItemModel }[]> {
@@ -263,10 +266,18 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
 
     // Create sprite sheets from the atlases
     const sheets: SpriteSheet[] = [];
+    statusMessage(MessageType.Process, 'Creating item atlases...')
+    const bar = progress.defaultBar();
+    bar.start(atlases.length, 0, {prefix: 'Item Atlases'});
     for (const atlas of atlases) {
-        const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, convertedAssets, `textures/item_atlases/${files.arrayHash(atlas)}.png`);
+        const hash = files.arrayHash(atlas);
+        bar.update({prefix: hash});
+        const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, convertedAssets, `textures/item_atlases/${hash}.png`);
         sheets.push(sheet);
+        bar.increment();
     }
+    bar.stop();
+    statusMessage(MessageType.Completion, `Created ${atlases.length} item atlases`)
 
     return sheets;
 }
@@ -282,4 +293,10 @@ function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
         Object.entries(model.textures || {})
             .filter(([key]) => usedTextures.has(key))
     );
+}
+
+async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[]) {
+    for (const item of predicateItems) {
+        
+    }
 }

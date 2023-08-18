@@ -3,6 +3,7 @@ import { MaxRectsPacker, Rectangle } from 'maxrects-packer';
 import * as archives from './archives';
 import AdmZip from 'adm-zip';
 import { SpriteSheet, ImageData } from '../types/util/atlases';
+import { MessageType, statusMessage } from './console';
 
 export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imagePaths: string[], convertedAssets: AdmZip, outputPath: string): Promise<SpriteSheet> {
     const images = await loadImages(zip, imagePaths, fallbackZip);
@@ -71,13 +72,18 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     // Write the spritesheet to the output zip
     archives.insertRawInZip(convertedAssets, [{ file: outputPath, data: outputBuffer }]);
 
-    console.log(`Created spritesheet ${outputPath}`);
     return output;
 }
 
 async function loadImages(zip: AdmZip, paths: string[], fallbackZip: AdmZip): Promise<ImageData[]> {
     const images = await Promise.all(paths.map(async (imgPath) => {
-        const imgBuffer = archives.getBufferFromZip(zip, imgPath, fallbackZip);
+        let imgBuffer: Buffer;
+        try {
+            imgBuffer = archives.getBufferFromZip(zip, imgPath, fallbackZip);   
+        } catch (e) {
+            //statusMessage(MessageType.Critical, `Failed to load image ${imgPath}, using fallback texture`)
+            imgBuffer = archives.getBufferFromZip(zip, 'assets/minecraft/textures/block/white_concrete.png', fallbackZip);
+        }
         const metadata = await sharp(imgBuffer).metadata();
 
         return {
