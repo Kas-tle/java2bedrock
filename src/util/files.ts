@@ -108,6 +108,10 @@ export function pathFromTextureEntry(entry: string): string {
     return path.join('assets', 'minecraft', 'textures', `${entry}.png`);
 }
 
+export function javaToBedrockTexturePath(texturePath: string): string {
+    return texturePath.replace(/assets\/(\w+)\/textures\//, 'textures/');
+}
+
 export function bedrockPathFromTextureEntry(entry: string): string {
     const [namespace, ...texture] = entry.split(':');
     return path.join('textures', namespace, `${texture}.png`);

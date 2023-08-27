@@ -12,14 +12,7 @@ export interface Animation {
             blend_weight?: string,
             override_previous_animation?: boolean,
             bones?: {
-                [identifier: string]: {
-                    relative_to?: {
-                        rotation_entity?: string,
-                    },
-                    position?: string | number | MolangVec3f | Animation.TimeStampObject,
-                    rotation?: string | number | MolangVec3f | Animation.TimeStampObject,
-                    scale?: string | number | MolangVec3f | Animation.TimeStampObject
-                }
+                [identifier: string]: Animation.Bone | undefined
             },
             particle_effects?: {
                 [time_stamp: string]: Animation.ParticleEffect | Array<Animation.ParticleEffect>
@@ -36,6 +29,17 @@ export interface Animation {
 }
 
 export namespace Animation {
+    export interface Bone {
+        relative_to?: {
+            rotation_entity?: string,
+        },
+        position?: BoneParam,
+        rotation?: BoneParam,
+        scale?: BoneParam
+    }
+
+    export type BoneParam = string | number | MolangVec3f | TimeStampObject;
+
     export interface TimeStampObject {
         [time_stamp: string]: MolangVec3f | TimeStampParams
     }
