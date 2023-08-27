@@ -8,6 +8,7 @@ export interface ItemEntry {
     path: string;
     model: ItemModel;
     sprite: boolean;
+    hash: string;
 }
 
 export interface GeyserPredicate extends Model.BasePredicate {

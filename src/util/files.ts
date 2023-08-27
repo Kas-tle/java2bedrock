@@ -108,8 +108,13 @@ export function pathFromTextureEntry(entry: string): string {
     return path.join('assets', 'minecraft', 'textures', `${entry}.png`);
 }
 
+export function bedrockPathFromTextureEntry(entry: string): string {
+    const [namespace, ...texture] = entry.split(':');
+    return path.join('textures', namespace, `${texture}.png`);
+}
+
 export function namespaceEntry(entry: string): string {
-    if(!entry.includes(':')) {
+    if (!entry.includes(':')) {
         return 'minecraft:' + entry;
     }
     return entry;
@@ -118,4 +123,20 @@ export function namespaceEntry(entry: string): string {
 export function arrayHash(array: any[]): string {
     const jsonString = JSON.stringify(array);
     return crypto.createHash('sha256').update(jsonString).digest('hex').slice(0, 7);
+}
+
+export function objectHash(object: any): string {
+    const jsonString = JSON.stringify(object);
+    return crypto.createHash('sha256').update(jsonString).digest('hex').slice(0, 7);
+}
+
+export function sortedObject<T extends Record<string, any>>(unordered: T): T {
+    const sorted: Partial<T> = Object.keys(unordered).sort().reduce(
+        (obj, key) => {
+            obj[key as keyof T] = unordered[key];
+            return obj;
+        },
+        {} as Partial<T>
+    );
+    return sorted as T;
 }

@@ -21,6 +21,7 @@ export namespace Geometry {
     }
     export interface Bone {
         name: string,
+        binding?: string,
         parent?: string,
         pivot?: Vec3f,
         rotation?: Vec3f,
