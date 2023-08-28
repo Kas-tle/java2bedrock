@@ -346,7 +346,7 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         }
 
         const geometry = await models.generateItemGeometry(item, sheet);
-        archives.insertRawInZip(convertedAssets, [{ file: `models/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
+        archives.insertRawInZip(convertedAssets, [{ file: `models/geyser_custom/${item.hash}.geo.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
 
         const animation = await models.generateAnimation(item);
         archives.insertRawInZip(convertedAssets, [{ file: `animations/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(animation)) }]);

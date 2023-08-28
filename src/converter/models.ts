@@ -188,15 +188,15 @@ async function generateCubes(item: ItemEntry, sprite: SpriteSheet | null): Promi
 
         const sw = 16 / (sprite ? sprite.meta.size.w : 16);
         const sh = 16 / (sprite ? sprite.meta.size.h : 16);
-        const fw = frameData.frame.w * 0.0625;
-        const fh = frameData.frame.h * 0.0625;
-        const fx = frameData.frame.x * 0.0625;
-        const fy = frameData.frame.y * 0.0625;
+        const fw = frameData.frame.w;
+        const fh = frameData.frame.h;
+        const fx = frameData.frame.x;
+        const fy = frameData.frame.y;
 
-        const fn0 = (face.uv[0] * fw + fx) * sw;
-        const fn1 = (face.uv[1] * fh + fy) * sh;
-        const fn2 = (face.uv[2] * fw + fx) * sw;
-        const fn3 = (face.uv[3] * fh + fy) * sh;
+        const fn0 = (face.uv[0] * fw * 0.0625 + fx) * sw;
+        const fn1 = (face.uv[1] * fh * 0.0625 + fy) * sh;
+        const fn2 = (face.uv[2] * fw * 0.0625 + fx) * sw;
+        const fn3 = (face.uv[3] * fh * 0.0625 + fy) * sh;
         const xSign = Math.sign(fn2 - fn0);
         const ySign = Math.sign(fn3 - fn1);
 
@@ -231,8 +231,8 @@ async function generateCubes(item: ItemEntry, sprite: SpriteSheet | null): Promi
                 math.tenKRound(e.to[2] - e.from[2])
             ],
             rotation: e.rotation ? [
-                e.rotation.axis === 'x' ? e.rotation.angle : 0,
-                e.rotation.axis === 'y' ? e.rotation.angle : 0,
+                e.rotation.axis === 'x' ? - e.rotation.angle : 0,
+                e.rotation.axis === 'y' ? - e.rotation.angle : 0,
                 e.rotation.axis === 'z' ? e.rotation.angle : 0
             ] : undefined,
             pivot: e.rotation?.origin ? [
