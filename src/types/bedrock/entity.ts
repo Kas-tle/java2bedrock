@@ -30,6 +30,6 @@ export namespace Entity {
         texture_index: number
     }
     export interface Scripts extends Attachable.Scripts {
-        variables: { [key: string]: 'public' }
+        variables?: { [key: string]: 'public' }
     }
 }

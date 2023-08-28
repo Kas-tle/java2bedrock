@@ -1,44 +1,27 @@
 import * as files from '../util/files';
 import * as math from '../util/math';
 import { Geometry } from "../types/bedrock/geometry";
+import { Attachable } from "../types/bedrock/attachable";
 import { ItemEntry } from "../types/converter/items";
 import { Model } from "../types/java/model";
 import { SpriteSheet } from "../types/util/atlases";
 import { Animation } from '../types/bedrock/animation';
+import { Config } from '../util/config';
 
 export async function generateAnimation(item: ItemEntry): Promise<Animation> {
-    const display = item.model.display;
     const animation: Animation = {
         format_version: "1.8.0",
         animations: {
-            [`animation.geyser_custom.${item.hash}.thirdperson_main_hand`] : {
-                loop: true,
-                bones: {
-                    geyser_custom_x: display!.thirdperson_righthand ? {
-                        rotation: display!.thirdperson_righthand.rotation ? [- display!.thirdperson_righthand.rotation[0], 0, 0] : undefined,
-                        position: display!.thirdperson_righthand.translation ? [
-                            - display!.thirdperson_righthand.translation[0], 
-                            display!.thirdperson_righthand.translation[1], 
-                            display!.thirdperson_righthand.translation[2]
-                        ] : undefined,
-                        scale: display!.thirdperson_righthand.scale ? [
-                            display!.thirdperson_righthand.scale[0], 
-                            display!.thirdperson_righthand.scale[1], 
-                            display!.thirdperson_righthand.scale[2]
-                        ] : undefined,
-                    } : undefined,
-                    geyser_custom_y: display!.thirdperson_righthand ? {
-                        rotation: display!.thirdperson_righthand.rotation ? [0, - display!.thirdperson_righthand.rotation[1], 0] : undefined,
-                    } : undefined,
-                    geyser_custom_z: display!.thirdperson_righthand ? {
-                        rotation: display!.thirdperson_righthand.rotation ? [0, 0, display!.thirdperson_righthand.rotation[2]] : undefined,
-                    } : undefined,
-                    geyser_custom: {
-                        rotation: [90, 0, 0],
-                        position: [0, 13, -3]
-                    }
-                }
-            }
+            [`animation.geyser_custom.${item.hash}.thirdperson_main_hand`]:
+                await generateSlotAnimation(item, 'thirdperson_righthand', { baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
+            [`animation.geyser_custom.${item.hash}.thirdperson_off_hand`]:
+                await generateSlotAnimation(item, 'thirdperson_lefthand', { invertXPos: true, baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
+            [`animation.geyser_custom.${item.hash}.head`]:
+                await generateSlotAnimation(item, 'head', { baseScale: 0.625, baseAnimation: { position: [0, 19.9, 0] } }),
+            [`animation.geyser_custom.${item.hash}.firstperson_main_hand`]:
+                await generateSlotAnimation(item, 'firstperson_righthand', { baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
+            [`animation.geyser_custom.${item.hash}.firstperson_off_hand`]:
+                await generateSlotAnimation(item, 'firstperson_lefthand', { invertXPos: true, baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
         }
     };
 
@@ -46,41 +29,87 @@ export async function generateAnimation(item: ItemEntry): Promise<Animation> {
 }
 
 async function generateSlotAnimation(
-    item: ItemEntry, 
-    animationKey: keyof Model.DisplaySettings, 
+    item: ItemEntry,
+    animationKey: keyof Model.DisplaySettings,
     params: {
         baseAnimation?: Animation.Bone,
         baseRotation?: Animation.BoneParam,
-        baseScale?: Animation.BoneParam,
-    } = {}): Promise<Animation['animations'][string]> {
-    const display = item.model.display;
-    const animation: Animation['animations'][string] = {
+        baseScale?: number,
+        invertXPos?: boolean,
+    } = {}): Promise<Animation.Animation> {
+    const display = item.model.display ? item.model.display[animationKey] : undefined;
+    const { baseAnimation, baseRotation, baseScale, invertXPos } = params;
+    return {
         loop: true,
         bones: {
-            geyser_custom_x: display![animationKey] ? {
-                rotation: display![animationKey]!.rotation ? [- display![animationKey]!.rotation![0], 0, 0] : undefined,
-                position: display![animationKey]!.translation ? [
-                    - display![animationKey]!.translation![0], 
-                    display![animationKey]!.translation![1], 
-                    display![animationKey]!.translation![2]
+            geyser_custom_x: display ? {
+                rotation: display.rotation ? [math.tenKRound(- display.rotation[0]), 0, 0] : baseRotation,
+                position: display.translation ? [
+                    math.tenKRound(- display.translation[0] * (invertXPos ? -1 : 1)),
+                    math.tenKRound(display.translation[1]),
+                    math.tenKRound(display.translation[2])
                 ] : undefined,
-                scale: display![animationKey]!.scale ? [
-                    display![animationKey]!.scale![0], 
-                    display![animationKey]!.scale![1], 
-                    display![animationKey]!.scale![2]
-                ] : undefined,
+                scale: display.scale ? [
+                    math.tenKRound(display.scale[0] * (baseScale ?? 1)),
+                    math.tenKRound(display.scale[1] * (baseScale ?? 1)),
+                    math.tenKRound(display.scale[2] * (baseScale ?? 1))
+                ] : baseScale,
             } : undefined,
-            geyser_custom_y: display![animationKey] ? {
-                rotation: display![animationKey]!.rotation ? [0, - display![animationKey]!.rotation![1], 0] : undefined,
+            geyser_custom_y: display ? {
+                rotation: display.rotation ? [0, math.tenKRound(- display.rotation[1]), 0] : undefined,
             } : undefined,
-            geyser_custom_z: display![animationKey] ? {
-                rotation: display![animationKey]!.rotation ? [0, 0, display![animationKey]!.rotation![2]] : undefined,
+            geyser_custom_z: display ? {
+                rotation: display.rotation ? [0, 0, math.tenKRound(display.rotation[2])] : undefined,
             } : undefined,
-            geyser_custom: params.baseAnimation
+            geyser_custom: baseAnimation
         }
     };
+}
 
-    return animation;
+export async function generateAttachable(item: ItemEntry, attachableMaterial: Config['atachableMaterial'], texture: string): Promise<Attachable> {
+    return {
+        format_version: "1.10.0",
+        "minecraft:attachable": {
+            description: {
+                identifier: `geyser_custom:g_${item.hash}`,
+                materials: {
+                    default: attachableMaterial!,
+                    enchanted: attachableMaterial!,
+                },
+                textures: {
+                    default: texture,
+                    enchanted: "textures/misc/enchanted_item_glint",
+                },
+                geometry: {
+                    default: `geometry.geyser_custom.geo_${item.hash}`
+                },
+                scripts: {
+                    pre_animation: [
+                        "v.main_hand = c.item_slot == 'main_hand';",
+                        "v.off_hand = c.item_slot == 'off_hand';",
+                        "v.head = c.item_slot == 'head';"
+                    ],
+                    animate: [
+                        {thirdperson_main_hand: "v.main_hand && !c.is_first_person"},
+                        {thirdperson_off_hand: "v.off_hand && !c.is_first_person"},
+                        {thirdperson_head: "v.head && !c.is_first_person"},
+                        {firstperson_main_hand: "v.main_hand && c.is_first_person"},
+                        {firstperson_off_hand: "v.off_hand && c.is_first_person"},
+                        {firstperson_head: "c.is_first_person && v.head"}
+                    ]
+                },
+                animations: {
+                    thirdperson_main_hand: `animation.geyser_custom.${item.hash}.thirdperson_main_hand`,
+                    thirdperson_off_hand: `animation.geyser_custom.${item.hash}.thirdperson_off_hand`,
+                    thirdperson_head: `animation.geyser_custom.${item.hash}.head`,
+                    firstperson_main_hand: `animation.geyser_custom.${item.hash}.firstperson_main_hand`,
+                    firstperson_off_hand: `animation.geyser_custom.${item.hash}.firstperson_off_hand`,
+                    firstperson_head: "animation.geyser_custom.disable"
+                },
+                render_controllers: [ "controller.render.item_default" ]
+            }
+        }
+    };
 }
 
 export async function generateItemGeometry(item: ItemEntry, sheet: SpriteSheet | null): Promise<Geometry> {

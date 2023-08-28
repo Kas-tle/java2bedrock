@@ -9,6 +9,9 @@ export interface ItemEntry {
     model: ItemModel;
     sprite: boolean;
     hash: string;
+    textures: string[];
+    uniqueTextures: Set<string>;
+    bedrockTexture?: string;
 }
 
 export interface GeyserPredicate extends Model.BasePredicate {

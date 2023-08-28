@@ -92,6 +92,10 @@ export function absolutePath(filepath: string): string {
     return path.join(process.cwd(), filepath);
 }
 
+export function extensionlessPath(filepath: string): string {
+    return path.join(path.dirname(filepath), path.basename(filepath, path.extname(filepath)));
+}
+
 export function pathFromModelEntry(entry: string): string {
     if (entry.includes(':')) {
         const [namespace, ...modelPath] = entry.split(':');

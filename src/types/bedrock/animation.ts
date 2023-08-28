@@ -3,32 +3,33 @@ import { MolangVec3f } from "../util";
 export interface Animation {
     format_version: string,
     animations: {
-        [identifier: string]: {
-            loop?: boolean,
-            loop_hold_on_last_frame?: string,
-            start_delay?: string,
-            loop_delay?: string,
-            anim_time_update?: string,
-            blend_weight?: string,
-            override_previous_animation?: boolean,
-            bones?: {
-                [identifier: string]: Animation.Bone | undefined
-            },
-            particle_effects?: {
-                [time_stamp: string]: Animation.ParticleEffect | Array<Animation.ParticleEffect>
-            },
-            sound_effects?: {
-                [time_stamp: string]: Animation.SoundEffect | Array<Animation.SoundEffect>
-            },
-            timeline?: {
-                [time_stamp: string]: string | Array<string>
-            },
-            animation_length?: number
-        }
+        [identifier: string]: Animation.Animation
     }
 }
 
 export namespace Animation {
+    export interface Animation {
+        loop?: boolean,
+        loop_hold_on_last_frame?: string,
+        start_delay?: string,
+        loop_delay?: string,
+        anim_time_update?: string,
+        blend_weight?: string,
+        override_previous_animation?: boolean,
+        bones?: {
+            [identifier: string]: Bone | undefined
+        },
+        particle_effects?: {
+            [time_stamp: string]: ParticleEffect | Array<ParticleEffect>
+        },
+        sound_effects?: {
+            [time_stamp: string]: SoundEffect | Array<SoundEffect>
+        },
+        timeline?: {
+            [time_stamp: string]: string | Array<string>
+        },
+        animation_length?: number
+    }
     export interface Bone {
         relative_to?: {
             rotation_entity?: string,

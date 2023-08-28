@@ -3,14 +3,15 @@ import { Vec2f, Vec3f } from "../util";
 export interface Geometry {
     format_version: string,
     debug?: boolean,
-    'minecraft:geometry': {
-        description: Geometry.Description,
-        cape?: string,
-        bones?: Geometry.Bone[]
-    }[]
+    'minecraft:geometry': Geometry.Geometry[]
 }
 
 export namespace Geometry {
+    export interface Geometry {
+        description: Geometry.Description,
+        cape?: string,
+        bones?: Geometry.Bone[]
+    }
     export interface Description {
         identifier: string,
         visible_bounds_width?: number,

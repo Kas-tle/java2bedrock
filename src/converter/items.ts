@@ -3,7 +3,6 @@ import path from 'path';
 import * as models from './models';
 import * as archives from '../util/archives';
 import * as files from '../util/files';
-import * as math from '../util/math';
 import * as progress from '../util/progress';
 import { BlockModel, ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
@@ -12,22 +11,21 @@ import { MessageType, statusMessage } from "../util/console";
 import { MovedTexture } from "../types/mappings";
 import { createSpriteSheet } from "../util/atlases";
 import { SpriteSheet } from "../types/util/atlases";
-import { Geometry } from "../types/bedrock/geometry";
-import { Animation } from "../types/bedrock/animation";
 import sharp from "sharp";
+import { Config } from "../util/config";
 
-export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string, movedTextures: MovedTexture[]): Promise<void> {
+export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string, movedTextures: MovedTexture[], attachableMaterial: Config['atachableMaterial']): Promise<void> {
     // Scan for vanilla items
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
     // Scan for predicates
-    const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version);
+    const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version, convertedAssets, movedTextures);
 
     // Construct texture sheets
-    const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets, movedTextures);
+    const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets);
 
     // Write items
-    await writeItems(predicateItems, sheets, inputAssets, defaultAssets, convertedAssets, movedTextures);
+    await writeItems(predicateItems, sheets, convertedAssets, attachableMaterial);
     console.log('[DEBUG] done');
 }
 
@@ -41,9 +39,10 @@ async function scanVanillaItems(inputAssets: AdmZip, defaultAssets: AdmZip): Pro
     )));
 }
 
-async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[], inputAssets: AdmZip, defaultAssets: AdmZip, version: string): Promise<ItemEntry[]> {
+async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[], inputAssets: AdmZip, defaultAssets: AdmZip, version: string, convertedAssets: AdmZip, movedTextures: MovedTexture[]): Promise<ItemEntry[]> {
     const predicates: ItemEntry[] = [];
     const mcData = minecraftData(version);
+    const movedTexturesArr = movedTextures.map(t => t.file);
 
     for (const vanillaItem of vanillaItems) {
         const item = path.basename(vanillaItem.path, '.json');
@@ -98,19 +97,52 @@ async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[]
                             model.display = model.display ?? parentModel.display;
                         }
                     }
+
                     if (!sprite) {
                         model.textures = validatedTextures(model);
                     }
+                    
+                    const sortedJavaTextures = files.sortedObject(model.textures ?? {})
+                    const textures = Object.values(sortedJavaTextures).map(t => files.pathFromTextureEntry(t));
+                    const uniqueTextures = new Set(textures);
+
+                    let bedrockTexture: string | undefined = undefined;
+                    if (sprite) {
+                        // Send the sprite to convertedAssets
+                        let spriteBuffer: Buffer;
+                        
+                        if (uniqueTextures.size > 1) {
+                            let baseImage = sharp(archives.getBufferFromZip(inputAssets, textures[0], defaultAssets));
+                            for (let i = 1; i < textures.length; i++) {
+                                baseImage = baseImage.composite([{ input: archives.getBufferFromZip(inputAssets, textures[i], defaultAssets) }]);
+                            }
+                            spriteBuffer = await baseImage.png().toBuffer();
+                        } else {
+                            spriteBuffer = archives.getBufferFromZip(inputAssets, textures[0], defaultAssets);
+                        }
+
+                        if (!movedTexturesArr.includes(textures[0])) {
+                            archives.insertRawInZip(convertedAssets, [{ file: files.javaToBedrockTexturePath(textures[0]), data: spriteBuffer }]);
+                            bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
+                        }
+                    } else if (uniqueTextures.size === 1 && movedTexturesArr.includes(textures[0])) {
+                        bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
+                    }
+
                     const path = files.pathFromModelEntry(override.model);
                     const overrides = predicate.build();
                     const hash = files.objectHash({path, overrides});
+
                     predicates.push({
                         item,
                         overrides,
                         path,
                         model,
                         sprite,
-                        hash
+                        hash,
+                        textures,
+                        uniqueTextures,
+                        bedrockTexture
                     });
                 } catch (error) {
                     statusMessage(MessageType.Critical, `Failed to parse model ${files.namespaceEntry(override.model)} for item ${item}: ${error}`);
@@ -223,36 +255,21 @@ function handleSpecialPredicates(item: string, version: string, builder: GeyserP
     }
 }
 
-async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[]): Promise<SpriteSheet[]> {
+async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip): Promise<SpriteSheet[]> {
     const atlases: string[][] = [];
-    const movedTexturesArr = movedTextures.map(t => t.file);
     for (const item of predicateItems) {
-        const sortedJavaTextures = files.sortedObject(item.model.textures ?? {})
-        const javaItemTextures = Object.values(sortedJavaTextures).map(t => files.pathFromTextureEntry(t));
-        const itemTextures = new Set(javaItemTextures);
-        if (itemTextures.size === 0) {
+        if (item.uniqueTextures.size === 0) {
             continue;
         }
 
-        if (item.sprite) {
-            // Send the sprite to convertedAssets
-            let spriteBuffer: Buffer;
-            if (itemTextures.size > 1) {
-                let baseImage = sharp(archives.getBufferFromZip(inputAssets, javaItemTextures[0], defaultAssets));
-                for (let i = 1; i < javaItemTextures.length; i++) {
-                    baseImage = baseImage.composite([{ input: archives.getBufferFromZip(inputAssets, javaItemTextures[i], defaultAssets) }]);
-                }
-                spriteBuffer = await baseImage.png().toBuffer();
-            } else {
-                spriteBuffer = archives.getBufferFromZip(inputAssets, itemTextures.values().next().value, defaultAssets);
-            }
-            archives.insertRawInZip(convertedAssets, [{ file: files.javaToBedrockTexturePath(javaItemTextures[0]), data: spriteBuffer }]);
+        if (item.bedrockTexture != null) {
+            // we already have a texture so we don't need an atlas
             continue;
         }
 
         // Check if any of the textures are contained in an existing atlas or multiple atlases
         const containedAtlases = atlases
-            .map((a, index) => ({ index, textures: a.filter(t => itemTextures.has(t)) }))
+            .map((a, index) => ({ index, textures: a.filter(t => item.uniqueTextures.has(t)) }))
             .filter(a => a.textures.length > 0)
             .map(a => a.index);
 
@@ -264,7 +281,7 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
                     combinedAtlas.add(texture);
                 }
             }
-            for (const texture of itemTextures) {
+            for (const texture of item.uniqueTextures) {
                 combinedAtlas.add(texture);
             }
 
@@ -275,15 +292,9 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
 
             // Add the combined atlas to the atlases array
             atlases.push(Array.from(combinedAtlas).sort());
-        } else if (itemTextures.size === 1) {
-            // If there is only one texture, check if it is contained in the textures we already moved
-            if (movedTexturesArr.includes(itemTextures.values().next().value)) {
-                continue;
-            }
-            atlases.push(Array.from(itemTextures));
         } else {
             // Otherwise just create a new atlas
-            atlases.push(Array.from(itemTextures).sort());
+            atlases.push(Array.from(item.uniqueTextures).sort());
         }
     }
 
@@ -318,7 +329,7 @@ function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
     );
 }
 
-async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[]) {
+async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, attachableMaterial: Config['atachableMaterial']) {
     for (const item of predicateItems) {
         const textureValues = Object.values(item.model.textures || {}).map(t => files.pathFromTextureEntry(t));
         const sheet: SpriteSheet | null = sprites.find(sprite => {
@@ -326,42 +337,21 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], i
                 return textureValues.includes(frameKey);
             });
         }) ?? null;
-        const geometry = await models.generateItemGeometry(item, sheet);
-        archives.insertRawInZip(convertedAssets, [{ file: `models/geometry/geyser_custom.geo_${item.hash}.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
+        let texture = 'textures/misc/missing_texture';
 
-        const display = item.model.display;
-        const animation: Animation = {
-            format_version: "1.8.0",
-            animations: {
-                [`animation.geyser_custom.${item.hash}.thirdperson_main_hand`] : {
-                    loop: true,
-                    bones: {
-                        geyser_custom_x: display!.thirdperson_righthand ? {
-                            rotation: display!.thirdperson_righthand.rotation ? [- display!.thirdperson_righthand.rotation[0], 0, 0] : undefined,
-                            position: display!.thirdperson_righthand.translation ? [
-                                - display!.thirdperson_righthand.translation[0], 
-                                display!.thirdperson_righthand.translation[1], 
-                                display!.thirdperson_righthand.translation[2]
-                            ] : undefined,
-                            scale: display!.thirdperson_righthand.scale ? [
-                                display!.thirdperson_righthand.scale[0], 
-                                display!.thirdperson_righthand.scale[1], 
-                                display!.thirdperson_righthand.scale[2]
-                            ] : undefined,
-                        } : undefined,
-                        geyser_custom_y: display!.thirdperson_righthand ? {
-                            rotation: display!.thirdperson_righthand.rotation ? [0, - display!.thirdperson_righthand.rotation[1], 0] : undefined,
-                        } : undefined,
-                        geyser_custom_z: display!.thirdperson_righthand ? {
-                            rotation: display!.thirdperson_righthand.rotation ? [0, 0, display!.thirdperson_righthand.rotation[2]] : undefined,
-                        } : undefined,
-                        geyser_custom: {
-                            rotation: [90, 0, 0],
-                            position: [0, 13, -3]
-                        }
-                    }
-                }
-            }
-        };
+        if (item.bedrockTexture != null) {
+            texture = files.extensionlessPath(item.bedrockTexture);
+        } else if (sheet != null) {
+            texture = files.extensionlessPath(sheet.meta.image);
+        }
+
+        const geometry = await models.generateItemGeometry(item, sheet);
+        archives.insertRawInZip(convertedAssets, [{ file: `models/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
+
+        const animation = await models.generateAnimation(item);
+        archives.insertRawInZip(convertedAssets, [{ file: `animations/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(animation)) }]);
+
+        const attachable = await models.generateAttachable(item, attachableMaterial, texture);
+        archives.insertRawInZip(convertedAssets, [{ file: `attachables/geyser_custom/${item.hash}.attachable.json`, data: Buffer.from(JSON.stringify(attachable)) }]);
     }
 }
