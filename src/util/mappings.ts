@@ -2,12 +2,13 @@ import path from 'path';
 import ignoredTexturePathsMappings from '../resources/mappings/textures/ignored.json';
 import modifiedTexturePathsMappings from '../resources/mappings/textures/modified.json';
 import rootTexturePathsMappings from '../resources/mappings/textures/root.json';
+import itemIconMappings from '../resources/mappings/items/icon.json';
 import * as files from './files';
 import * as archives from './archives';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import { MessageType, statusMessage } from './console';
-import { Mappings, Texture } from '../types/mappings';
+import { Item, Mappings, Texture } from '../types/mappings';
 
 export async function generateMappings(appDataPath: string, version: string, defaultAssets: AdmZip): Promise<Mappings> {
     const mappingsPath = path.join(appDataPath, 'mappings', version);
@@ -16,9 +17,21 @@ export async function generateMappings(appDataPath: string, version: string, def
     const vanillaTexturePaths = archives.listFilePathsInZip(defaultAssets, 'assets/minecraft/textures', '.png');
     const textureMappings = await generateTextureMappings(mappingsPath, version, vanillaTexturePaths);
 
+    const itemMappings = await generateItemMappings(mappingsPath, version, defaultAssets);
+    console.log(itemMappings);
+
     return {
-        textureMappings
+        textureMappings,
+        itemMappings
     }
+}
+
+async function generateItemMappings(mappingsPath: string, version: string, defaultAssets: AdmZip): Promise<Mappings['itemMappings']> {
+    const iconMappings: Item.Icons = itemIconMappings;
+
+    return {
+        icons: iconMappings
+    };
 }
 
 async function generateTextureMappings(mappingsPath: string, version: string, vanillaTexturePaths: string[]): Promise<Mappings['textureMappings']> {

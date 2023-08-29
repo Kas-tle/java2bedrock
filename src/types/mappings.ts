@@ -3,6 +3,18 @@ export interface Mappings {
         nested: Texture.Mappings;
         root: Texture.RootMappings;
     };
+    itemMappings: {
+        icons: Item.Icons;
+    };
+}
+
+export namespace Item {
+    export interface Icons {
+        [key: string]: {
+            icon: string;
+            frame: number;
+        };
+    }
 }
 
 export interface MovedTexture {

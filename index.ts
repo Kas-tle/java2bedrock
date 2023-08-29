@@ -37,7 +37,7 @@ async function main(): Promise<void> {
     const movedTextures = await convertTextures(inputAssetsZip, convertedAssetsZip, mappings.textureMappings);
 
     // Items
-    const geyserMappings = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, config.defaultAssetVersion!, movedTextures, config);
+    const geyserMappings = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config, mappings.itemMappings);
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));
     files.writeJsonFile(path.join(process.cwd(), 'target', 'geyser_mappings.json'), geyserMappings);

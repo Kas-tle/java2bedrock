@@ -8,7 +8,7 @@ import { BlockModel, ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
 import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
 import { MessageType, statusMessage } from "../util/console";
-import { MovedTexture } from "../types/mappings";
+import { Mappings, MovedTexture } from "../types/mappings";
 import { createSpriteSheet } from "../util/atlases";
 import { SpriteSheet } from "../types/util/atlases";
 import sharp from "sharp";
@@ -18,18 +18,20 @@ import { Worker } from 'worker_threads';
 import os from 'os';
 import { ItemAtlas } from "../types/bedrock/texture";
 
-export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, version: string, movedTextures: MovedTexture[], config: Config): Promise<GeyserMappings> {
+const MISSING_TEXTURE = 'textures/misc/missing_texture';
+
+export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[], config: Config, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings> {
     // Scan for vanilla items
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
     // Scan for predicates
-    const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, version, convertedAssets, movedTextures);
+    const predicateItems = await scanPredicates(vanillaItems, inputAssets, defaultAssets, config.defaultAssetVersion!, convertedAssets, movedTextures);
 
     // Construct texture sheets
     const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets);
 
     // Write items
-    const mappings = await writeItems(predicateItems, sheets, convertedAssets, config, mergeAssets);
+    const mappings = await writeItems(predicateItems, sheets, convertedAssets, config, mergeAssets, itemMappings);
 
     return mappings;
 }
@@ -385,7 +387,7 @@ function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
     );
 }
 
-async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null): Promise<GeyserMappings> {
+async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings> {
     const mappings: GeyserMappings = {
         format_version: '1',
         items: {}
@@ -393,7 +395,11 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
     const itemTextures: ItemAtlas = {
         resource_pack_name: "geyser_custom",
         texture_name: "atlas.items",
-        texture_data: {}
+        texture_data: {
+            missing: {
+                textures: MISSING_TEXTURE
+            }
+        }
     };
 
     for (const item of predicateItems) {
@@ -403,7 +409,7 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
                 return textureValues.includes(frameKey);
             });
         }) ?? null;
-        let texture = 'textures/misc/missing_texture';
+        let texture = MISSING_TEXTURE;
 
         if (item.bedrockTexture != null) {
             texture = files.extensionlessPath(item.bedrockTexture);
@@ -420,7 +426,7 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         const attachable = await models.generateAttachable(item, config.atachableMaterial, texture);
         archives.insertRawInZip(convertedAssets, [{ file: `attachables/geyser_custom/${item.hash}.attachable.json`, data: Buffer.from(JSON.stringify(attachable)) }]);
 
-        let icon = item.bedrockTexture;
+        let icon = undefined;
         if (config.spriteMappings != null && mergeAssets != null) {
             const spriteMappings = config.spriteMappings[item.item];
             const spriteMapping = spriteMappings ? spriteMappings.find(s => files.objectsEqual(s.overrides, item.overrides)) : null;
@@ -432,6 +438,9 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
                 const filePath = path.join(files.pathFromTextureEntry(spriteMapping.sprite), '.png');
                 archives.transferFromZip(mergeAssets, convertedAssets, [{ file: filePath, path: filePath }]);
             }
+        }
+        if (icon == null) {
+            icon = itemMappings.icons[item.item] != null ? itemMappings.icons[item.item].icon : 'missing';
         }
 
         const itemMapping: GeyserMappings.Item = {
