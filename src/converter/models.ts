@@ -73,8 +73,9 @@ export async function generateAttachable(item: ItemEntry, attachableMaterial: Co
             description: {
                 identifier: `geyser_custom:g_${item.hash}`,
                 materials: {
-                    default: attachableMaterial!,
-                    enchanted: attachableMaterial!,
+                    // TODO: auto assignment of minumum material
+                    default: attachableMaterial ?? 'alpha_test',
+                    enchanted: attachableMaterial ?? 'alpha_test',
                 },
                 textures: {
                     default: texture,
