@@ -37,10 +37,15 @@ async function main(): Promise<void> {
     const movedTextures = await convertTextures(inputAssetsZip, convertedAssetsZip, mappings.textureMappings);
 
     // Items
-    await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, config.defaultAssetVersion!, movedTextures, config.atachableMaterial);
-
+    const geyserMappings = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, config.defaultAssetVersion!, movedTextures, config);
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));
+    files.writeJsonFile(path.join(process.cwd(), 'target', 'geyser_mappings.json'), geyserMappings);
+
+    const itemCount = geyserMappings.items ? Object.values(geyserMappings.items).reduce((total, currentArray) => total + currentArray.length, 0) : 0;
+    const blockCount = geyserMappings.blocks ? Object.values(geyserMappings.blocks).reduce((total, currentArray) => total + currentArray.length, 0) : 0;
+
+    statusMessage(MessageType.Completion, `Conversion complete for ${itemCount} items and ${blockCount} blocks`);
     return;
 }
 

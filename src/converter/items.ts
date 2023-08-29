@@ -13,8 +13,12 @@ import { createSpriteSheet } from "../util/atlases";
 import { SpriteSheet } from "../types/util/atlases";
 import sharp from "sharp";
 import { Config } from "../util/config";
+import { GeyserMappings } from "../types/converter/mappings";
+import { Worker } from 'worker_threads';
+import os from 'os';
+import { ItemAtlas } from "../types/bedrock/texture";
 
-export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, version: string, movedTextures: MovedTexture[], attachableMaterial: Config['atachableMaterial']): Promise<void> {
+export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, version: string, movedTextures: MovedTexture[], config: Config): Promise<GeyserMappings> {
     // Scan for vanilla items
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
@@ -25,8 +29,9 @@ export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip,
     const sheets = await constructTextureSheets(predicateItems, inputAssets, defaultAssets, convertedAssets);
 
     // Write items
-    await writeItems(predicateItems, sheets, convertedAssets, attachableMaterial);
-    console.log('[DEBUG] done');
+    const mappings = await writeItems(predicateItems, sheets, convertedAssets, config, mergeAssets);
+
+    return mappings;
 }
 
 async function scanVanillaItems(inputAssets: AdmZip, defaultAssets: AdmZip): Promise<{ path: string, model: ItemModel }[]> {
@@ -303,13 +308,64 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
     statusMessage(MessageType.Process, 'Creating item atlases...')
     const bar = progress.defaultBar();
     bar.start(atlases.length, 0, { prefix: 'Item Atlases' });
-    for (const atlas of atlases) {
-        const hash = files.arrayHash(atlas);
-        bar.update({ prefix: hash });
-        const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, convertedAssets, `textures/item_atlases/${hash}.png`);
-        sheets.push(sheet);
-        bar.increment();
+
+    const numCPUs = os.cpus().length;
+    if (false) {
+        // Multi threaded (fix when I am smarter and have time)
+        const workers: Worker[] = [];
+        interface Result {
+            file: string,
+            data: Buffer,
+            sheet: SpriteSheet
+        }
+        const results: Result[] = [];
+        let finishedTasks = 0;
+
+        function handleWorkerMessage(result: Result) {
+            results.push(result);
+            finishedTasks++;
+
+            // Check if all tasks are done
+            if (finishedTasks === atlases.length) {
+                // Process the results
+                for (const result of results) {
+                    archives.insertRawInZip(convertedAssets, [{ file: result.file, data: result.data }]);
+                    sheets.push(result.sheet);
+                }
+            }
+        }
+
+        // Create workers
+        for (let i = 0; i < numCPUs; i++) {
+            const worker = new Worker('./path-to-your-worker-file.js');
+            worker.on('message', handleWorkerMessage);
+            workers.push(worker);
+        }
+
+        // Distribute tasks among workers
+        atlases.forEach((atlas, index) => {
+            const hash = files.arrayHash(atlas);
+            const worker = workers[index % numCPUs];
+            
+            worker.postMessage({
+                inputAssets: inputAssets,
+                defaultAssets: defaultAssets,
+                atlas: atlas,
+                outputPath: `textures/item_atlases/${hash}.png`
+            });
+        });
+    } else {
+        // Single threaded
+        for (const atlas of atlases) {
+            const hash = files.arrayHash(atlas);
+            bar.update({ prefix: hash });
+            const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, `textures/item_atlases/${hash}.png`);
+            archives.insertRawInZip(convertedAssets, [{ file: sheet.file, data: sheet.data }]);
+            sheets.push(sheet.sheet);
+            bar.increment();
+        }
     }
+
     bar.stop();
     statusMessage(MessageType.Completion, `Created ${atlases.length} item atlases`)
 
@@ -329,7 +385,17 @@ function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
     );
 }
 
-async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, attachableMaterial: Config['atachableMaterial']) {
+async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null): Promise<GeyserMappings> {
+    const mappings: GeyserMappings = {
+        format_version: '1',
+        items: {}
+    };
+    const itemTextures: ItemAtlas = {
+        resource_pack_name: "geyser_custom",
+        texture_name: "atlas.items",
+        texture_data: {}
+    };
+
     for (const item of predicateItems) {
         const textureValues = Object.values(item.model.textures || {}).map(t => files.pathFromTextureEntry(t));
         const sheet: SpriteSheet | null = sprites.find(sprite => {
@@ -351,7 +417,39 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         const animation = await models.generateAnimation(item);
         archives.insertRawInZip(convertedAssets, [{ file: `animations/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(animation)) }]);
 
-        const attachable = await models.generateAttachable(item, attachableMaterial, texture);
+        const attachable = await models.generateAttachable(item, config.atachableMaterial, texture);
         archives.insertRawInZip(convertedAssets, [{ file: `attachables/geyser_custom/${item.hash}.attachable.json`, data: Buffer.from(JSON.stringify(attachable)) }]);
+
+        let icon = item.bedrockTexture;
+        if (config.spriteMappings != null && mergeAssets != null) {
+            const spriteMappings = config.spriteMappings[item.item];
+            const spriteMapping = spriteMappings ? spriteMappings.find(s => files.objectsEqual(s.overrides, item.overrides)) : null;
+            if (spriteMapping != null) {
+                icon = `g_${item.hash}`;
+                itemTextures.texture_data[icon] = {
+                    textures: files.extensionlessPath(spriteMapping.sprite)
+                };
+                const filePath = path.join(files.pathFromTextureEntry(spriteMapping.sprite), '.png');
+                archives.transferFromZip(mergeAssets, convertedAssets, [{ file: filePath, path: filePath }]);
+            }
+        }
+
+        const itemMapping: GeyserMappings.Item = {
+            name: `g_${item.hash}`,
+            allow_off_hand: true,
+            icon,
+            custom_model_data: item.overrides.custom_model_data,
+            damage_predicate: item.overrides.damage,
+            unbreakable: item.overrides.unbreakable
+        };
+
+        mappings.items![`minecraft:${item.item}`] == null ? mappings.items![`minecraft:${item.item}`] = [] : '';
+        mappings.items![`minecraft:${item.item}`].push(itemMapping);
     }
+
+    if (Object.keys(itemTextures.texture_data).length > 0) {
+        archives.insertRawInZip(convertedAssets, [{ file: 'textures/item_texture.json', data: Buffer.from(JSON.stringify(itemTextures)) }]);
+    }
+
+    return mappings;
 }

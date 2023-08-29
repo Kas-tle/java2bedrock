@@ -1,11 +1,10 @@
 import sharp from 'sharp';
-import { MaxRectsPacker, Rectangle } from 'maxrects-packer';
+import { MaxRectsPacker } from 'maxrects-packer';
 import * as archives from './archives';
 import AdmZip from 'adm-zip';
 import { SpriteSheet, ImageData } from '../types/util/atlases';
-import { MessageType, statusMessage } from './console';
 
-export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imagePaths: string[], convertedAssets: AdmZip, outputPath: string): Promise<SpriteSheet> {
+export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imagePaths: string[], outputPath: string): Promise<{sheet: SpriteSheet, file: string, data: Buffer}> {
     const images = await loadImages(zip, imagePaths, fallbackZip);
     const options = {
         smart: true,
@@ -69,10 +68,7 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     // Composite the images onto the spritesheet
     const outputBuffer = await spritesheet.composite(sprites).png().toBuffer();
 
-    // Write the spritesheet to the output zip
-    archives.insertRawInZip(convertedAssets, [{ file: outputPath, data: outputBuffer }]);
-
-    return output;
+    return { sheet: output, file: outputPath, data: outputBuffer };
 }
 
 async function loadImages(zip: AdmZip, paths: string[], fallbackZip: AdmZip): Promise<ImageData[]> {

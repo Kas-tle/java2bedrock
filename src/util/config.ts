@@ -5,6 +5,7 @@ import { select, input, confirm } from '@inquirer/prompts';
 import { jsonGetRequest } from './request';
 import { Piston } from '../types/piston';
 import * as files from './files';
+import { GeyserPredicate } from '../types/converter/items';
 
 export interface Config {
     inputJavaPack: string | null;
@@ -15,6 +16,14 @@ export interface Config {
     vanillaClientManifest: string | null;
     saveScratch: boolean;
     ignorePathLimit: boolean;
+    spriteMappings: {
+        [key: string]: SpriteConfigEntry[];
+    } | null;
+}
+
+export interface SpriteConfigEntry {
+    sprite: string;
+    overrides: GeyserPredicate;
 }
 
 const defaultConfig: Config = {
@@ -25,7 +34,8 @@ const defaultConfig: Config = {
     defaultAssetVersion: null,
     vanillaClientManifest: null,
     saveScratch: true,
-    ignorePathLimit: false
+    ignorePathLimit: false,
+    spriteMappings: null
 };
 
 let cachedConfig: Config | null = null;
