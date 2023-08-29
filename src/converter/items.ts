@@ -447,8 +447,10 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         mappings.items![`minecraft:${item.item}`].push(itemMapping);
     }
 
-    if (Object.keys(itemTextures.texture_data).length > 0) {
+    const itemTexturesCount = Object.keys(itemTextures.texture_data).length;
+    if (itemTexturesCount > 0) {
         archives.insertRawInZip(convertedAssets, [{ file: 'textures/item_texture.json', data: Buffer.from(JSON.stringify(itemTextures)) }]);
+        statusMessage(MessageType.Completion, `Inserted ${itemTexturesCount} mapped icons into item atlas`);
     }
 
     return mappings;
