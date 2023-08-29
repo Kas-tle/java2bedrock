@@ -18,7 +18,6 @@ export async function generateMappings(appDataPath: string, version: string, def
     const textureMappings = await generateTextureMappings(mappingsPath, version, vanillaTexturePaths);
 
     const itemMappings = await generateItemMappings(mappingsPath, version, defaultAssets);
-    console.log(itemMappings);
 
     return {
         textureMappings,
