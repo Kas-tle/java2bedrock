@@ -8,19 +8,22 @@ export namespace BlockState {
     }
     
     export interface Multipart {
-        multipart: {
-            when?: {
+        multipart: Part[]
+    }
+
+    export interface Part {
+        when?: {
+            [key: string]: string
+        } | {
+            OR: {
                 [key: string]: string
-            } | {
-                OR: {
-                    [key: string]: string
-                },
-                AND: {
-                    [key: string]: string
-                }
-            },
-            apply: State | State[]
-        }[]
+            }[]
+        } | {
+            AND: {
+                [key: string]: string
+            }[]
+        },
+        apply: State | State[]
     }
     
     export interface State {

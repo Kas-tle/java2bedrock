@@ -104,6 +104,14 @@ export function pathFromModelEntry(entry: string): string {
     return path.join('assets', 'minecraft', 'models', `${entry}.json`);
 }
 
+export function modelEntryFromPath(modelPath: string): string {
+    // get namespace from path via regex
+    const namespace = modelPath.match(/assets\/([^\/]+)\/models\//)?.[1];
+    // get model path from path via regex
+    const model = modelPath.match(/assets\/[^\/]+\/models\/(.*)\.json/)?.[1];
+    return `${namespace}:${model}`;
+}
+
 export function pathFromTextureEntry(entry: string): string {
     if (entry.includes(':')) {
         const [namespace, ...texturePath] = entry.split(':');

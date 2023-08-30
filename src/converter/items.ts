@@ -458,6 +458,14 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
 
     const itemTexturesCount = Object.keys(itemTextures.texture_data).length - 1;
     if (itemTexturesCount > 0) {
+        if (mergeAssets != null) {
+            try {
+                const existingItemTextures = await archives.parseJsonFromZip<ItemAtlas>(mergeAssets, 'textures/item_texture.json');
+                itemTextures.texture_data = {...existingItemTextures.texture_data, ...itemTextures.texture_data}
+            } catch(e) {
+                // no-op
+            }
+        }
         archives.insertRawInZip(convertedAssets, [{ file: 'textures/item_texture.json', data: Buffer.from(JSON.stringify(itemTextures)) }]);
         statusMessage(MessageType.Completion, `Inserted ${itemTexturesCount} mapped icons into item atlas`);
     }

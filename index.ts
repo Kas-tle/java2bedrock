@@ -12,6 +12,7 @@ import { convertTextures } from './src/converter/textures';
 import path from 'path';
 import { convertManifest } from './src/converter/manifest';
 import { convertItems } from './src/converter/items';
+import { convertBlocks } from './src/converter/blocks';
 
 async function main(): Promise<void> {
     // Needed for exit handler
@@ -38,6 +39,9 @@ async function main(): Promise<void> {
 
     // Items
     const geyserMappings = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config, mappings.itemMappings);
+
+    // Blocks
+    await convertBlocks(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config);
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));
     files.writeJsonFile(path.join(process.cwd(), 'target', 'geyser_mappings.json'), geyserMappings);
