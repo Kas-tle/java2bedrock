@@ -351,19 +351,23 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
     for (const modelPath of modelPaths) {
         const hash = files.stringHash(modelPath);
         try {
-            const model = await archives.parseJsonFromZip<BlockModel>(inputAssets, modelPath);
+            const model = await archives.parseJsonFromZip<BlockModel>(inputAssets, modelPath, defaultAssets);
             const builder = new BlockBuilder()
+            // TODO: obtain proper render method per block (in actual mappings generator, not here)
+            const materialBuilder = new MaterialInstanceBuilder().renderMethod("alpha_test");
+            const materialInstances: Record<string, GeyserMappings.MaterialInstance> = {};
 
             if (model.parent != null) {
                 exit:
                 while ((model.elements == null || model.textures == null) && model.parent != null) {
                     // Special parent handling
-                    // Material instances must be mapped to different UV keys per model
+                    // These cases need special material instance mapping
                     // Then skip geometry conversion
                     switch(files.namespaceEntry(model.parent)) {
                         case 'block/cube':
                         case 'minecraft:block/cube':
                             // 
+                            
                         case 'block/cube_all':
                         case 'minecraft:block/cube_all':
                             //
@@ -420,10 +424,6 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                     model.textures = model.textures ?? parentModel.textures;
                 }
             }
-
-            const materialInstances: Record<string, GeyserMappings.MaterialInstance> = {};
-            // TODO: obtain proper render method per block (in actual mappings generator, not here)
-            const materialBuilder = new MaterialInstanceBuilder().renderMethod("alpha_test");
 
             model.textures = models.validatedTextures(model)
 

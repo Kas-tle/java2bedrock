@@ -16,6 +16,10 @@ export namespace FlipbookTexture {
 interface Atlas {
     resource_pack_name: string,
     texture_name: string,
+}
+
+export interface ItemAtlas extends Atlas {
+    texture_name: 'atlas.items'
     texture_data: {
         [identifier: string]: {
             textures: string | string[]
@@ -23,12 +27,18 @@ interface Atlas {
     }
 }
 
-export interface ItemAtlas extends Atlas {
-    texture_name: 'atlas.items'
-}
-
 export interface TerrainAtlas extends Atlas {
     texture_name: 'atlas.terrain',
     num_mip_levels?: number,
     padding?: number
+    texture_data: {
+        [identifier: string]: {
+            textures: string | string[] | {
+                variations: { 
+                    path: string, 
+                    weight?: number 
+                }[],
+            }
+        }
+    }
 }
