@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     files.writeJsonFile(path.join(process.cwd(), 'target', 'geyser_mappings.json'), geyserMappings);
 
     const itemCount = geyserMappings.items ? Object.values(geyserMappings.items).reduce((total, currentArray) => total + currentArray.length, 0) : 0;
-    const blockCount = geyserMappings.blocks ? Object.values(geyserMappings.blocks).reduce((total, currentArray) => total + currentArray.length, 0) : 0;
+    const blockCount = geyserMappings.blocks ? Object.values(geyserMappings.blocks).reduce((total, currentArray) => total + Object.values(currentArray).length, 0) : 0;
 
     statusMessage(MessageType.Completion, `Conversion complete for ${itemCount} items and ${blockCount} blocks`);
     return;

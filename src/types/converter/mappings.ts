@@ -40,7 +40,7 @@ export namespace GeyserMappings {
         z?: number;
     }
     export interface Blocks {
-        [key: string]: RootBlock[];
+        [key: string]: RootBlock;
     }
     export interface Block {
         collision_box?: Hitbox;
@@ -183,4 +183,165 @@ export namespace GeyserMappings {
         "itemGroup.name.wool" |
         "itemGroup.name.woolCarpet";
     export type CreativeGroup = "commands" | "construction" | "equipment" | "items" | "nature" | "none";
+}
+
+export class BlockBuilder {
+    private block: GeyserMappings.Block = {};
+
+    collisionBox(hitbox: GeyserMappings.Hitbox): this {
+        this.block.collision_box = hitbox;
+        return this;
+    }
+
+    destructibleByMining(value: number): this {
+        this.block.destructible_by_mining = value;
+        return this;
+    }
+
+    displayName(name: string): this {
+        this.block.display_name = name;
+        return this;
+    }
+
+    extendedCollisionBox(hitbox: GeyserMappings.Hitbox): this {
+        this.block.extended_collision_box = hitbox;
+        return this;
+    }
+
+    friction(value: Range<0, 1>): this {
+        this.block.friction = value;
+        return this;
+    }
+
+    geometry(value: { identifier: string; bone_visibility?: { [key: string]: Molang; }; } | string): this {
+        this.block.geometry = value;
+        return this;
+    }
+
+    lightEmission(value: Range<0, 15>): this {
+        this.block.light_emission = value;
+        return this;
+    }
+
+    lightDampening(value: Range<0, 15>): this {
+        this.block.light_dampening = value;
+        return this;
+    }
+
+    materialInstances(instances: { [key: string]: GeyserMappings.MaterialInstance }): this {
+        this.block.material_instances = instances;
+        return this;
+    }
+
+    placementFilter(filter: GeyserMappings.PlacementFilter): this {
+        this.block.placement_filter = filter;
+        return this;
+    }
+
+    selectionBox(hitbox: GeyserMappings.Hitbox): this {
+        this.block.selection_box = hitbox;
+        return this;
+    }
+
+    tags(tagList: string[]): this {
+        this.block.tags = tagList;
+        return this;
+    }
+
+    transformation(value: {
+        scale?: Vec3f;
+        translation?: Vec3f;
+        rotation?: Vec3f;
+    }): this {
+        this.block.transformation = value;
+        return this;
+    }
+
+    unitCube(value: boolean): this {
+        this.block.unit_cube = value;
+        return this;
+    }
+
+    append(existingBlock: GeyserMappings.Block): this {
+        Object.assign(this.block, existingBlock);
+        return this;
+    }
+
+    build(): GeyserMappings.Block {
+        return this.block;
+    }
+}
+
+export class RootBlockBuilder extends BlockBuilder {
+    private rootBlock: GeyserMappings.RootBlock = { ...super.build(), name: '' };
+
+    name(value: string): this {
+        this.rootBlock.name = value;
+        return this;
+    }
+
+    creativeCategory(value: GeyserMappings.CreativeCategory): this {
+        this.rootBlock.creative_category = value;
+        return this;
+    }
+
+    creativeGroup(value: GeyserMappings.CreativeGroup): this {
+        this.rootBlock.creative_group = value;
+        return this;
+    }
+
+    includedInCreativeInventory(value: boolean): this {
+        this.rootBlock.included_in_creative_inventory = value;
+        return this;
+    }
+
+    onlyOverrideStates(value: boolean): this {
+        this.rootBlock.only_override_states = value;
+        return this;
+    }
+
+    stateOverrides(overrides: { [key: string]: GeyserMappings.Block }): this {
+        this.rootBlock.state_overrides = overrides;
+        return this;
+    }
+
+    placeAir(value: boolean): this {
+        this.rootBlock.place_air = value;
+        return this;
+    }
+
+    build(): GeyserMappings.RootBlock {
+        return this.rootBlock;
+    }
+}
+
+export class MaterialInstanceBuilder {
+    private materialInstance: GeyserMappings.MaterialInstance = {
+        texture: '',
+        render_method: "opaque"
+    };
+
+    texture(value: string): this {
+        this.materialInstance.texture = value;
+        return this;
+    }
+
+    renderMethod(value: "opaque" | "alpha_test" | "blend" | "double_sided"): this {
+        this.materialInstance.render_method = value;
+        return this;
+    }
+
+    faceDimming(value: boolean): this {
+        this.materialInstance.face_dimming = value;
+        return this;
+    }
+
+    ambientOcclusion(value: boolean): this {
+        this.materialInstance.ambient_occlusion = value;
+        return this;
+    }
+
+    build(): GeyserMappings.MaterialInstance {
+        return this.materialInstance;
+    }
 }

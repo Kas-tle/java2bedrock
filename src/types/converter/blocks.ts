@@ -1,4 +1,6 @@
 import { BlockState } from "../java/blockstate";
+import { BlockModel } from "../java/model";
+import { GeyserMappings } from "./mappings";
 
 export interface McDataState {
     name: string;
@@ -37,4 +39,12 @@ export interface BlockStateCondition {
 export interface InterimStateMaps { 
     overrides: BlockStateWithPath[], 
     vanilla: Map<string, BlockStateCondition[]> 
+}
+
+export interface InterimBlockModelMap {
+    [key: string]: {
+        model: BlockModel,
+        hash: string,
+        components: GeyserMappings.Block
+    };
 }

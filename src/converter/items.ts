@@ -4,7 +4,7 @@ import * as models from './models';
 import * as archives from '../util/archives';
 import * as files from '../util/files';
 import * as progress from '../util/progress';
-import { BlockModel, ItemModel, Model } from "../types/java/model";
+import { ItemModel, Model } from "../types/java/model";
 import minecraftData from 'minecraft-data'
 import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
 import { MessageType, statusMessage } from "../util/console";
@@ -106,7 +106,7 @@ async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[]
                     }
 
                     if (!sprite) {
-                        model.textures = validatedTextures(model);
+                        model.textures = models.validatedTextures(model);
                     }
                     
                     const sortedJavaTextures = files.sortedObject(model.textures ?? {})
@@ -130,8 +130,8 @@ async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[]
 
                         if (!movedTexturesArr.includes(textures[0])) {
                             archives.insertRawInZip(convertedAssets, [{ file: files.javaToBedrockTexturePath(textures[0]), data: spriteBuffer }]);
-                            bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
                         }
+                        bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
                     } else if (uniqueTextures.size === 1 && movedTexturesArr.includes(textures[0])) {
                         bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
                     }
@@ -374,19 +374,6 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
     return sheets;
 }
 
-function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
-    const usedTextures = new Set(
-        (model.elements || [])
-            .flatMap(element => Object.values(element.faces || {}))
-            .filter(face => face != null)
-            .map(face => face!.texture.slice(1))
-    );
-    return Object.fromEntries(
-        Object.entries(model.textures || {})
-            .filter(([key]) => usedTextures.has(key))
-    );
-}
-
 async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings> {
     const mappings: GeyserMappings = {
         format_version: '1',
@@ -427,6 +414,12 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         archives.insertRawInZip(convertedAssets, [{ file: `attachables/geyser_custom/${item.hash}.attachable.json`, data: Buffer.from(JSON.stringify(attachable)) }]);
 
         let icon = undefined;
+        if (item.sprite && item.bedrockTexture != null) {
+            icon = `g_${item.hash}`;
+            itemTextures.texture_data[icon] = {
+                textures: files.extensionlessPath(item.bedrockTexture)
+            };
+        }
         if (config.spriteMappings != null && mergeAssets != null) {
             const spriteMappings = config.spriteMappings[item.item];
             const spriteMapping = spriteMappings ? spriteMappings.find(s => files.objectsEqual(s.overrides, item.overrides)) : null;

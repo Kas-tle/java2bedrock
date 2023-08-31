@@ -3,7 +3,7 @@ import * as math from '../util/math';
 import { Geometry } from "../types/bedrock/geometry";
 import { Attachable } from "../types/bedrock/attachable";
 import { ItemEntry } from "../types/converter/items";
-import { Model } from "../types/java/model";
+import { BlockModel, ItemModel, Model } from "../types/java/model";
 import { SpriteSheet } from "../types/util/atlases";
 import { Animation } from '../types/bedrock/animation';
 import { Config } from '../util/config';
@@ -145,14 +145,52 @@ export async function generateItemGeometry(item: ItemEntry, sheet: SpriteSheet |
                     name: "geyser_custom_z",
                     parent: "geyser_custom_y",
                     texture_meshes: item.sprite ? [{ texture: "default", position: [0, 8, 0], rotation: [90, 0, -180], local_pivot: [8, 0.5, 8] }] : undefined,
-                    cubes: item.sprite ? undefined : await generateCubes(item, sheet)
+                    cubes: item.sprite ? undefined : await generateItemCubes(item, sheet)
                 }
             ]
         }]
     };
 }
 
-async function generateCubes(item: ItemEntry, sprite: SpriteSheet | null): Promise<Geometry.Cube[]> {
+export async function generateBlockGeometry(hash: string, model: BlockModel): Promise<Geometry> {
+    return {
+        format_version: "1.16.0",
+        "minecraft:geometry": [{
+            description: {
+                identifier: `geometry.geyser_custom.geo_${hash}`,
+                texture_width: 16,
+                texture_height: 16,
+                visible_bounds_width: 4,
+                visible_bounds_height: 4.5,
+                visible_bounds_offset: [0, 0.75, 0]
+            },
+            bones: [
+                {
+                    name: "geyser_custom",
+                    binding: "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+                    pivot: [0, 8, 0]
+                },
+                {
+                    name: "geyser_custom_x",
+                    parent: "geyser_custom",
+                    pivot: [0, 8, 0]
+                },
+                {
+                    name: "geyser_custom_y",
+                    parent: "geyser_custom_x",
+                    pivot: [0, 8, 0]
+                },
+                {
+                    name: "geyser_custom_z",
+                    parent: "geyser_custom_y",
+                    cubes: await generateBlockCubes(model)
+                }
+            ]
+        }]
+    };
+}
+
+async function generateItemCubes(item: ItemEntry, sprite: SpriteSheet | null): Promise<Geometry.Cube[]> {
     const elements = item.model.elements ?? [];
     const cubes: Geometry.Cube[] = [];
     const frameData = (face: Model.Face | undefined): SpriteSheet["frames"][string] => {
@@ -254,4 +292,91 @@ async function generateCubes(item: ItemEntry, sprite: SpriteSheet | null): Promi
     }
 
     return cubes;
+}
+
+async function generateBlockCubes(model: BlockModel): Promise<Geometry.Cube[]> {
+    const elements = model.elements ?? [];
+    const cubes: Geometry.Cube[] = [];
+    const calculatedUv = (direction: string, face: Model.Face | undefined): Geometry.Face | undefined => {
+        if (face == null || face.uv == null) {
+            return undefined;
+        }
+
+        const fn0 = face.uv[0];
+        const fn1 = face.uv[1];
+        const fn2 = face.uv[2];
+        const fn3 = face.uv[3];
+        const xSign = Math.sign(fn2 - fn0);
+        const ySign = Math.sign(fn3 - fn1);
+
+        const material_instance = face.texture ? face.texture.slice(1) : undefined;
+
+        switch (direction) {
+            case 'up':
+            case 'down':
+                return {
+                    uv: [math.tenKRound(fn2 - (0.016 * xSign)), math.tenKRound(fn3 - (0.016 * ySign))],
+                    uv_size: [math.tenKRound((fn0 - fn2) + (0.016 * xSign)), math.tenKRound((fn1 - fn3) + (0.016 * ySign))],
+                    material_instance
+                };
+            case 'north':
+            case 'south':
+            case 'east':
+            case 'west':
+                return {
+                    uv: [math.tenKRound(fn0 + (0.016 * xSign)), math.tenKRound(fn1 + (0.016 * ySign))],
+                    uv_size: [math.tenKRound((fn2 - fn0) - (0.016 * xSign)), math.tenKRound((fn3 - fn1) - (0.016 * ySign))],
+                    material_instance
+                };
+        }
+    }
+
+    for (const e of elements) {
+        const cube: Geometry.Cube = {
+            origin: [
+                math.tenKRound(- e.to[0] + 8),
+                math.tenKRound(e.from[1]),
+                math.tenKRound(e.from[2] - 8)
+            ],
+            size: [
+                math.tenKRound(e.to[0] - e.from[0]),
+                math.tenKRound(e.to[1] - e.from[1]),
+                math.tenKRound(e.to[2] - e.from[2])
+            ],
+            rotation: e.rotation ? [
+                e.rotation.axis === 'x' ? - e.rotation.angle : 0,
+                e.rotation.axis === 'y' ? - e.rotation.angle : 0,
+                e.rotation.axis === 'z' ? e.rotation.angle : 0
+            ] : undefined,
+            pivot: e.rotation?.origin ? [
+                math.tenKRound(- e.rotation.origin[0] + 8),
+                math.tenKRound(e.rotation.origin[1]),
+                math.tenKRound(e.rotation.origin[2] - 8)
+            ] : undefined,
+            uv: e.faces ? {
+                north: calculatedUv('north', e.faces.north),
+                south: calculatedUv('south', e.faces.south),
+                east: calculatedUv('east', e.faces.east),
+                west: calculatedUv('west', e.faces.west),
+                up: calculatedUv('up', e.faces.up),
+                down: calculatedUv('down', e.faces.down),
+            } : undefined,
+        };
+        cubes.push(cube);
+    }
+
+    return cubes;
+}
+
+export function validatedTextures(model: BlockModel | ItemModel): Model.Textures {
+    const usedTextures = new Set(
+        (model.elements || [])
+            .flatMap(element => Object.values(element.faces || {}))
+            .filter(face => face != null)
+            .map(face => face!.texture.slice(1))
+    );
+    return Object.fromEntries(
+        Object.entries(model.textures || {})
+            .filter(([key]) => usedTextures.has(key))
+    );
 }

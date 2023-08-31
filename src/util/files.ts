@@ -146,6 +146,10 @@ export function objectHash(object: any): string {
     return crypto.createHash('sha256').update(jsonString).digest('hex').slice(0, 7);
 }
 
+export function stringHash(string: string): string {
+    return crypto.createHash('sha256').update(string).digest('hex').slice(0, 7);
+}
+
 export function objectsEqual(object1: any, object2: any): boolean {
     return JSON.stringify(object1, Object.keys(object1).sort()) === JSON.stringify(object2, Object.keys(object2).sort());
 }
