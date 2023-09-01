@@ -20,7 +20,7 @@ import { ItemAtlas } from "../types/bedrock/texture";
 
 const MISSING_TEXTURE = 'textures/misc/missing_texture';
 
-export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[], config: Config, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings> {
+export async function convertItems(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[], config: Config, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings.Items> {
     // Scan for vanilla items
     const vanillaItems = await scanVanillaItems(inputAssets, defaultAssets);
 
@@ -374,11 +374,8 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
     return sheets;
 }
 
-async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings> {
-    const mappings: GeyserMappings = {
-        format_version: '1',
-        items: {}
-    };
+async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], convertedAssets: AdmZip, config: Config, mergeAssets: AdmZip | null, itemMappings: Mappings['itemMappings']): Promise<GeyserMappings.Items> {
+    const mappings: GeyserMappings.Items = {};
     const itemTextures: ItemAtlas = {
         resource_pack_name: "geyser_custom",
         texture_name: "atlas.items",
@@ -445,8 +442,8 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
             unbreakable: item.overrides.unbreakable
         };
 
-        mappings.items![`minecraft:${item.item}`] == null ? mappings.items![`minecraft:${item.item}`] = [] : '';
-        mappings.items![`minecraft:${item.item}`].push(itemMapping);
+        mappings[`minecraft:${item.item}`] == null ? mappings[`minecraft:${item.item}`] = [] : '';
+        mappings[`minecraft:${item.item}`].push(itemMapping);
     }
 
     const itemTexturesCount = Object.keys(itemTextures.texture_data).length - 1;

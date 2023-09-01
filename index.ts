@@ -13,6 +13,7 @@ import path from 'path';
 import { convertManifest } from './src/converter/manifest';
 import { convertItems } from './src/converter/items';
 import { convertBlocks } from './src/converter/blocks';
+import { GeyserMappings } from './src/types/converter/mappings';
 
 async function main(): Promise<void> {
     // Needed for exit handler
@@ -26,6 +27,11 @@ async function main(): Promise<void> {
 
     const defaultAssetsZip = await cacheVanillaAssets(config.vanillaClientManifest!, config.defaultAssetVersion!, appDataPath);
     const mappings = await generateMappings(appDataPath, config.defaultAssetVersion!, defaultAssetsZip);
+    const geyserMappings: GeyserMappings = {
+        format_version: "1",
+        items: {},
+        blocks: {}
+    };
 
     const inputAssetsZip = new AdmZip(config.inputJavaPack!);
     const mergeAssetsZip = config.bedrockMergePack !== null ? new AdmZip(config.bedrockMergePack) : null;
@@ -38,10 +44,10 @@ async function main(): Promise<void> {
     const movedTextures = await convertTextures(inputAssetsZip, convertedAssetsZip, mappings.textureMappings);
 
     // Items
-    const geyserMappings = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config, mappings.itemMappings);
+    geyserMappings['items'] = await convertItems(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config, mappings.itemMappings);
 
     // Blocks
-    await convertBlocks(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config);
+    geyserMappings['blocks'] = await convertBlocks(inputAssetsZip, convertedAssetsZip, defaultAssetsZip, mergeAssetsZip, movedTextures, config);
 
     convertedAssetsZip.writeZip(path.join(process.cwd(), 'target', 'geyser_resources.zip'));
     files.writeJsonFile(path.join(process.cwd(), 'target', 'geyser_mappings.json'), geyserMappings);

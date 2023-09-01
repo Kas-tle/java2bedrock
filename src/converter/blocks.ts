@@ -7,19 +7,20 @@ import { Config } from "../util/config";
 import minecraftData from "minecraft-data";
 import { BlockState } from "../types/java/blockstate";
 import path from "path";
-import { BlockStateCondition, BlockStateWithPath, InterimBlockModelMap, InterimStateMaps, McDataState, StateModel, VariantGroup, VariantGroups } from "../types/converter/blocks";
+import { BlockStateCondition, BlockStateWithPath, CubeTextureMap, InterimBlockModelMap, InterimStateMaps, McDataState, StateModel, VariantGroup, VariantGroups } from "../types/converter/blocks";
 import { BlockBuilder, GeyserMappings, MaterialInstanceBuilder, RootBlockBuilder } from "../types/converter/mappings";
 import { TerrainAtlas } from "../types/bedrock/texture";
-import { BlockModel } from "../types/java/model";
+import { BlockModel, Model } from "../types/java/model";
 import { MessageType, statusMessage } from "../util/console";
 
-export async function convertBlocks(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[], config: Config) {
+export async function convertBlocks(inputAssets: AdmZip, convertedAssets: AdmZip, defaultAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[], config: Config): Promise<GeyserMappings.Blocks> {
     const inputVanillaBlockStates = await scanInputVanillaBlockStates(inputAssets, defaultAssets);
 
     const variantGroups = await groupVariants(inputVanillaBlockStates, config);
-    files.writeJsonFile(path.join(process.cwd(), 'target', 'variant_groups.json'), variantGroups);
 
-    await writeBlocks(variantGroups, inputAssets, defaultAssets, convertedAssets, mergeAssets, movedTextures);
+    const blockMappings = await writeBlocks(variantGroups, inputAssets, defaultAssets, convertedAssets, mergeAssets, movedTextures);
+
+    return blockMappings;
 }
 
 async function scanInputVanillaBlockStates(inputAssets: AdmZip, defaultAssets: AdmZip): Promise<InterimStateMaps> {
@@ -43,7 +44,7 @@ async function scanInputVanillaBlockStates(inputAssets: AdmZip, defaultAssets: A
         { path: p, state: await archives.parseJsonFromZip<BlockState>(inputAssets, p) }
     )))
 
-    return { overrides: blockStateOverrides, vanilla: vanillaModelAssociations};
+    return { overrides: blockStateOverrides, vanilla: vanillaModelAssociations };
 }
 
 export function findModelAssociations(states: BlockStateWithPath[], modelStrings: string[]): Map<string, BlockStateCondition[]> {
@@ -114,13 +115,13 @@ async function groupVariants(vanillaBlockStates: InterimStateMaps, config: Confi
                 continue;
             }
             const vanillaStatesData = blockData.states;
-    
+
             if (vanillaStatesData != null) {
                 const vanillaStates = generateAllStates(vanillaStatesData);
-    
+
                 const usedStateStrings: string[] = [];
                 variantGroups[blockName] = [];
-    
+
                 for (const condition of value) {
                     if (condition.condition instanceof Object) {
                         const part = { when: condition.condition, apply: condition.state };
@@ -176,7 +177,7 @@ async function groupVariants(vanillaBlockStates: InterimStateMaps, config: Confi
     return variantGroups;
 }
 
-function processVariantState(blockName: string, key: string, value: BlockState.State | BlockState.State[],  variantGroups: VariantGroups, vanillaStates: Record<string, string>[], usedStateStrings: string[]): boolean {
+function processVariantState(blockName: string, key: string, value: BlockState.State | BlockState.State[], variantGroups: VariantGroups, vanillaStates: Record<string, string>[], usedStateStrings: string[]): boolean {
     if (key === "") {
         const variantGroup = getVariantGroup(value, true);
         variantGroups[blockName].push(variantGroup);
@@ -330,14 +331,14 @@ function matchesAll(vanillaState: Record<string, string>, possibleStates: Record
     return possibleStates.every(possibleState => matchesPossibleState(vanillaState, possibleState));
 }
 
-async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[]) {
+async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, mergeAssets: AdmZip | null, movedTextures: MovedTexture[]): Promise<GeyserMappings.Blocks> {
     const movedTexturesArr = movedTextures.map(t => t.file);
     const modelPaths = Object.values(variantGroups)
         .flat()
         .map(variantGroup => variantGroup.model)
         .flat()
         .map(model => files.pathFromModelEntry((model as StateModel).model))
-        .filter((value, index, self) => self.indexOf(value) === index);
+        .filter((value, index, self) => self.indexOf(value) == index);
 
     const blockTextures: TerrainAtlas = {
         resource_pack_name: "vanilla",
@@ -346,9 +347,9 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
     };
 
     const interimBlockModelMap: InterimBlockModelMap = {};
-    
+
     // First move all textures and convert geometries
-    for (const modelPath of modelPaths) {
+    nextGeometry: for (const modelPath of modelPaths) {
         const hash = files.stringHash(modelPath);
         try {
             const model = await archives.parseJsonFromZip<BlockModel>(inputAssets, modelPath, defaultAssets);
@@ -357,67 +358,99 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
             const materialBuilder = new MaterialInstanceBuilder().renderMethod("alpha_test");
             const materialInstances: Record<string, GeyserMappings.MaterialInstance> = {};
 
+            const assignCubeInstances = (cubeMap: CubeTextureMap, model: BlockModel) =>
+                assignCubeMaterialInstances(materialInstances, materialBuilder, model, cubeMap, blockTextures, inputAssets,
+                    convertedAssets, movedTextures, movedTexturesArr, interimBlockModelMap, builder, modelPath, hash);
+
             if (model.parent != null) {
-                exit:
+                exitWhile:
                 while ((model.elements == null || model.textures == null) && model.parent != null) {
                     // Special parent handling
                     // These cases need special material instance mapping
                     // Then skip geometry conversion
-                    switch(files.namespaceEntry(model.parent)) {
+                    switch (files.namespaceEntry(model.parent)) {
                         case 'block/cube':
                         case 'minecraft:block/cube':
                             // 
-                            
+                            assignCubeInstances({ particle: "down", down: "down", up: "up", north: "north", south: "south", west: "west", east: "east" }, model);
+                            continue nextGeometry;
                         case 'block/cube_all':
                         case 'minecraft:block/cube_all':
                             //
+                            assignCubeInstances({ particle: "all", down: "all", up: "all", north: "all", south: "all", west: "all", east: "all" }, model);
+                            continue nextGeometry;
                         case 'block/cube_bottom_top':
                         case 'minecraft:block/cube_bottom_top':
                             //
+                            assignCubeInstances({ particle: "side", down: "bottom", up: "top", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column':
                         case 'minecraft:block/cube_column':
                             //
+                            assignCubeInstances({ particle: "side", down: "end", up: "end", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column_horizontal':
                         case 'minecraft:block/cube_column_horizontal':
                             //
+                            assignCubeInstances({ particle: "side", down: "end", up: "end", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column_mirrored':
                         case 'minecraft:block/cube_column_mirrored':
                             //
+                            assignCubeInstances({ particle: "side", down: "end", up: "end", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column_uv_locked_x':
                         case 'minecraft:block/cube_column_uv_locked_x':
                             //
+                            assignCubeInstances({ particle: "side", down: "side", up: "side", north: "side", south: "side", west: "end", east: "end" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column_uv_locked_y':
                         case 'minecraft:block/cube_column_uv_locked_y':
                             //
+                            assignCubeInstances({ particle: "side", down: "end", up: "end", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_column_uv_locked_z':
                         case 'minecraft:block/cube_column_uv_locked_z':
                             //
+                            assignCubeInstances({ particle: "side", down: "side", up: "side", north: "end", south: "end", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                         case 'block/cube_directional':
                         case 'minecraft:block/cube_directional':
                             //
+                            assignCubeInstances({ particle: "down", down: "down", up: "up", north: "north", south: "south", west: "west", east: "east" }, model);
+                            continue nextGeometry;
                         case 'block/cube_mirrored':
                         case 'minecraft:block/cube_mirrored':
                             //
+                            assignCubeInstances({ particle: "down", down: "down", up: "up", north: "north", south: "south", west: "west", east: "east" }, model);
+                            continue nextGeometry;
                         case 'block/cube_mirrored_all':
                         case 'minecraft:block/cube_mirrored_all':
                             //
+                            assignCubeInstances({ particle: "all", down: "all", up: "all", north: "all", south: "all", west: "all", east: "all" }, model);
+                            continue nextGeometry;
                         case 'block/cube_north_west_mirrored':
                         case 'minecraft:block/cube_north_west_mirrored':
                             //
+                            assignCubeInstances({ particle: "down", down: "down", up: "up", north: "north", south: "south", west: "west", east: "east" }, model);
+                            continue nextGeometry;
                         case 'block/cube_north_west_mirrored_all':
                         case 'minecraft:block/cube_north_west_mirrored_all':
                             //
+                            assignCubeInstances({ particle: "all", down: "all", up: "all", north: "all", south: "all", west: "all", east: "all" }, model);
+                            continue nextGeometry;
                         case 'block/cube_top':
                         case 'minecraft:block/cube_top':
                             //
-                        builder.unitCube(true);
+                            assignCubeInstances({ particle: "side", down: "side", up: "top", north: "side", south: "side", west: "side", east: "side" }, model);
+                            continue nextGeometry;
                     }
 
                     const parentModel: BlockModel = await archives.parseJsonFromZip<BlockModel>(inputAssets, files.pathFromModelEntry(model.parent), defaultAssets);
                     model.parent = parentModel.parent;
 
                     if (model.parent == null) {
-                        break exit;
+                        break exitWhile;
                     }
 
                     model.elements = model.elements ?? parentModel.elements;
@@ -425,24 +458,27 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 }
             }
 
-            model.textures = models.validatedTextures(model)
-
             if (model.textures != null) {
+                let firstTexture: boolean = true;
                 for (const [key, value] of Object.entries(model.textures)) {
                     const texturePath = files.pathFromTextureEntry(value);
                     let bedrockTexturePath = files.bedrockPathFromTextureEntry(value);
                     const textureHash = files.stringHash(texturePath);
+                    if (firstTexture || key === "particle") {
+                        materialInstances["*"] = materialBuilder.texture(`g_${textureHash}`).build();
+                    }
                     materialInstances[key] = materialBuilder.texture(`g_${textureHash}`).build();
 
                     if (movedTexturesArr.includes(texturePath)) {
                         bedrockTexturePath = movedTextures.find(t => t.file === texturePath)!.path;
                     } else {
-                        archives.transferFromZip(inputAssets, convertedAssets, [{file: texturePath, path: bedrockTexturePath}]);
+                        archives.transferFromZip(inputAssets, convertedAssets, [{ file: texturePath, path: bedrockTexturePath }]);
                     }
 
                     blockTextures.texture_data[`g_${textureHash}`] = {
                         textures: [bedrockTexturePath]
                     };
+                    firstTexture = false;
                 }
             }
 
@@ -453,7 +489,7 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 .geometry(`geometry.geyser_custom.geo_${hash}`)
                 .materialInstances(materialInstances)
                 .build();
-            
+
             interimBlockModelMap[modelPath] = {
                 model,
                 hash,
@@ -464,17 +500,118 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
         }
     }
 
+    files.writeJsonFile('target/interim_block_mappings.json', interimBlockModelMap);
+
     const blockMappings: GeyserMappings.Blocks = {};
 
     for (const [block, groups] of Object.entries(variantGroups)) {
         const rootBuilder = new RootBlockBuilder()
             .name(block)
             .onlyOverrideStates(true);
-        const builder = new BlockBuilder();
+        const stateOverrides: Record<string, GeyserMappings.Block> = {};
         for (const group of groups) {
+            const builder = new BlockBuilder();
+            const modelPaths = group.model instanceof Array ? group.model.map(model => files.pathFromModelEntry(model.model)) : [files.pathFromModelEntry(group.model.model)];
+            let unitCube = true;
+            notUnitCube: for (const modelPath of modelPaths) {
+                const { components } = interimBlockModelMap[modelPath];
+                if (components.unit_cube !== true) {
+                    unitCube = false;
+                    break notUnitCube;
+                }
+            }
+
+            if (unitCube) {
+                // We can handle texture variations
+                const states = group.model instanceof Array ? group.model : [group.model];
+
+                // Don't really have time to do this correctly right now so this is a hack
+                for (const state of states) {
+                    const modelEntry = interimBlockModelMap[files.pathFromModelEntry(state.model)];
+                    // now we construct these weighted instances
+                    const instances = modelEntry.components.material_instances!;
+                    
+                }
+
+                const modelEntry = interimBlockModelMap[files.pathFromModelEntry(states[0].model)];
+                builder.append(modelEntry.components);
+
+                if (states[0].x != null || states[0].y != null) {
+                    builder.transformation({ ...modelEntry.components.transformation, rotation: [states[0].x ?? 0, states[0].y ?? 0, 0] });
+                }
+            } else {
+                // We'll just have to use the first state
+                const state = group.model instanceof Array ? group.model[0] : group.model;
+                const modelEntry = interimBlockModelMap[files.pathFromModelEntry(state.model)];
+                builder.append(modelEntry.components);
+
+                if (state.x != null || state.y != null) {
+                    builder.transformation({ ...modelEntry.components.transformation, rotation: [state.x ?? 0, state.y ?? 0, 0] });
+                }
+            }
+
             if (group.stateStrings === true) {
-                rootBuilder.onlyOverrideStates(false);
+                rootBuilder
+                    .onlyOverrideStates(false)
+                    .append(builder.build());
+            } else {
+                for (const override of group.stateStrings) {
+                    stateOverrides[override] = builder.build();
+                }
             }
         }
+
+        rootBuilder.stateOverrides(stateOverrides);
+        blockMappings[`minecraft:${block}`] = rootBuilder.build();
     }
+
+    archives.insertRawInZip(convertedAssets, [{ file: 'textures/terrain_texture.json', data: Buffer.from(JSON.stringify(blockTextures)) }]);
+    return blockMappings;
+}
+
+function assignCubeMaterialInstances(instances: Record<string, GeyserMappings.MaterialInstance>, builder: MaterialInstanceBuilder, model: BlockModel, cubeMap: CubeTextureMap, atlas: TerrainAtlas,
+    inputAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[], movedTexturesArr: string[], interimBlockModelMap: InterimBlockModelMap, blockBuilder: BlockBuilder, modelPath: string, hash: string) {
+    const textures = model.textures;
+    instances["*"] = builder.texture("missing").build();
+
+    if (textures != null) {
+        let firstTexture: boolean = true;
+
+        for (const [key, value] of Object.entries(cubeMap)) {
+            if (textures[value] == null) {
+                continue;
+            }
+            const texturePath = files.pathFromTextureEntry(textures[value]);
+            let bedrockTexturePath = files.bedrockPathFromTextureEntry(value);
+
+            const textureHash = files.stringHash(texturePath);
+            if (firstTexture || key === "particle") {
+                instances["*"] = builder.texture(`g_${textureHash}`).build();
+            }
+            instances[key] = builder.texture(`g_${textureHash}`).build();
+
+            if (movedTexturesArr.includes(texturePath)) {
+                bedrockTexturePath = movedTextures.find(t => t.file === texturePath)!.path;
+            } else {
+                archives.transferFromZip(inputAssets, convertedAssets, [{ file: texturePath, path: bedrockTexturePath }]);
+            }
+
+            atlas.texture_data[`g_${textureHash}`] = {
+                textures: [bedrockTexturePath]
+            };
+
+            firstTexture = false;
+        }
+    }
+
+    const components = blockBuilder
+        .unitCube(true)
+        .materialInstances(instances)
+        .build();
+
+    interimBlockModelMap[modelPath] = {
+        model,
+        hash,
+        components
+    };
 }

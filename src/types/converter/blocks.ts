@@ -48,3 +48,13 @@ export interface InterimBlockModelMap {
         components: GeyserMappings.Block
     };
 }
+
+export interface CubeTextureMap {
+    particle: string;
+    down: string;
+    up: string;
+    north: string;
+    south: string;
+    west: string;
+    east: string;
+}

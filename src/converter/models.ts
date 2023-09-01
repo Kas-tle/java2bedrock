@@ -377,6 +377,6 @@ export function validatedTextures(model: BlockModel | ItemModel): Model.Textures
     );
     return Object.fromEntries(
         Object.entries(model.textures || {})
-            .filter(([key]) => usedTextures.has(key))
+            .filter(([key]) => usedTextures.has(key) || key === 'particle')
     );
 }
