@@ -8,7 +8,7 @@ import * as archives from './archives';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import { MessageType, statusMessage } from './console';
-import { Item, Mappings, Texture } from '../types/mappings';
+import { Item, Mappings, Sound, Texture } from '../types/mappings';
 
 export async function generateMappings(appDataPath: string, version: string, defaultAssets: AdmZip): Promise<Mappings> {
     const mappingsPath = path.join(appDataPath, 'mappings', version);
@@ -17,15 +17,19 @@ export async function generateMappings(appDataPath: string, version: string, def
     const vanillaTexturePaths = archives.listFilePathsInZip(defaultAssets, 'assets/minecraft/textures', '.png');
     const textureMappings = await generateTextureMappings(mappingsPath, version, vanillaTexturePaths);
 
-    const itemMappings = await generateItemMappings(mappingsPath, version, defaultAssets);
+    const itemMappings = await generateItemMappings();
+
+    const vanillaSoundPaths = archives.listFilePathsInZip(defaultAssets, 'assets/minecraft/sounds', '.ogg');
+    const soundMappings = await generateSoundMappings(mappingsPath, version, vanillaSoundPaths);
 
     return {
         textureMappings,
-        itemMappings
+        itemMappings,
+        soundMappings
     }
 }
 
-async function generateItemMappings(mappingsPath: string, version: string, defaultAssets: AdmZip): Promise<Mappings['itemMappings']> {
+async function generateItemMappings(): Promise<Mappings['itemMappings']> {
     const iconMappings: Item.Icons = itemIconMappings;
 
     return {
@@ -78,3 +82,40 @@ async function generateTextureMappings(mappingsPath: string, version: string, va
     statusMessage(MessageType.Info, `Generated texture mappings for version ${version}`);
     return {nested: groupedPaths, root: rootPaths};
 }
+
+async function generateSoundMappings(mappingsPath: string, version: string, vanillaSoundPaths: string[]): Promise<Mappings['soundMappings']> {
+    const mappings: Sound.Mappings = {
+        files: {},
+        identifiers: {}
+    };
+    return mappings;
+    // temp no-op
+    
+    const mappingsSoundPath = path.join(mappingsPath, 'sounds');
+    files.ensureDirectory(mappingsSoundPath);
+
+    const mappingsSoundFile = path.join(mappingsSoundPath, `${version}.json`);
+    if(fs.existsSync(mappingsSoundFile)) {
+        statusMessage(MessageType.Info, `Found cached sound mappings for version ${version}`);
+        return await files.parseJsonFile(mappingsSoundFile);
+    }
+
+    const shortPaths = vanillaSoundPaths.map(p => p
+        .replace('assets/minecraft/sounds/', '')
+        .replace('.ogg', ''))
+    const groupedPaths: {[key: string]: string[]} = {};
+    shortPaths.forEach(p => {
+        const [prefix, ...rest] = p.split('/');
+        const newPath = rest.join('/');
+
+        if (!groupedPaths[prefix]) {
+            groupedPaths[prefix] = [];
+        }
+        groupedPaths[prefix].push(newPath);
+    });
+
+    files.writeJsonFile(mappingsSoundFile, groupedPaths);
+    statusMessage(MessageType.Info, `Generated sound mappings for version ${version}`);
+    return mappings;
+}
+

@@ -6,6 +6,7 @@ export interface Mappings {
     itemMappings: {
         icons: Item.Icons;
     };
+    soundMappings: Sound.Mappings;
 }
 
 export namespace Item {
@@ -31,5 +32,20 @@ export namespace Texture {
     }
     export interface RootMappings {
         [key: string]: string | null;
+    }
+}
+
+export namespace Sound {
+    export interface Mappings {
+        files: {
+            [key: string]: string
+        };
+        identifiers: {
+            [key: string]: {
+                bedrockPath: string;
+                javaPath: string;
+                identifier: string;
+            }
+        };
     }
 }
