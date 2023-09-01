@@ -310,6 +310,11 @@ export class RootBlockBuilder extends BlockBuilder {
         return this;
     }
 
+    append(existingBlock: GeyserMappings.Block): this {
+        Object.assign(this.rootBlock, existingBlock);
+        return this;
+    }
+
     build(): GeyserMappings.RootBlock {
         return this.rootBlock;
     }
