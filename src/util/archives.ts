@@ -52,12 +52,17 @@ export function insertRawInZip(zip: AdmZip, files: {file: string, data: Buffer}[
     }
 }
 
-export function transferFromZip(sourceZip: AdmZip, targetZip: AdmZip, files: {file: string, path: string}[]): void {
+export function transferFromZip(sourceZip: AdmZip, targetZip: AdmZip, files: {file: string, path: string}[], fallbackZip: AdmZip | null = null): void {
     // Add each file to the zip
     for (const file of files) {
         const sourceEntry = sourceZip.getEntry(file.file);
         if (sourceEntry) {
             targetZip.addFile(file.path, sourceEntry.getData());
+        } else if (fallbackZip != null) {
+            const fallbackEntry = fallbackZip.getEntry(file.file);
+            if (fallbackEntry) {
+                targetZip.addFile(file.path, fallbackEntry.getData());
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ export interface SpriteSheet {
                 x: number,
                 y: number,
             },
-            trimmed: boolean,
+            trimmed: boolean
         }
     },
     meta: {
@@ -37,3 +37,24 @@ export interface ImageData {
     height: number,
     path: string,
 };
+
+export interface FrameData {
+    frame: {
+        h: number,
+        w: number,
+        x: number,
+        y: number
+    },
+    rotated: boolean,
+    sourceSize: {
+        h: number,
+        w: number,
+    },
+    spriteSourceSize: {
+        h: number,
+        w: number,
+        x: number,
+        y: number,
+    },
+    trimmed: boolean
+}

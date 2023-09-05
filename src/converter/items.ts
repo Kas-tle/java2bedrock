@@ -128,12 +128,14 @@ async function scanPredicates(vanillaItems: { path: string, model: ItemModel }[]
                             spriteBuffer = archives.getBufferFromZip(inputAssets, textures[0], defaultAssets);
                         }
 
-                        if (!movedTexturesArr.includes(textures[0])) {
+                        if (movedTexturesArr.includes(textures[0])) {
+                            bedrockTexture = movedTextures.find(t => t.file === textures[0])!.path;
+                        } else {
                             archives.insertRawInZip(convertedAssets, [{ file: files.javaToBedrockTexturePath(textures[0]), data: spriteBuffer }]);
+                            bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
                         }
-                        bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
                     } else if (uniqueTextures.size === 1 && movedTexturesArr.includes(textures[0])) {
-                        bedrockTexture = files.javaToBedrockTexturePath(textures[0]);
+                        bedrockTexture = movedTextures.find(t => t.file === textures[0])!.path;
                     }
 
                     const path = files.pathFromModelEntry(override.model);
@@ -339,7 +341,7 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
 
         // Create workers
         for (let i = 0; i < numCPUs; i++) {
-            const worker = new Worker('./path-to-your-worker-file.js');
+            const worker = new Worker('../util/workers/atlases.js');
             worker.on('message', handleWorkerMessage);
             workers.push(worker);
         }
@@ -381,7 +383,7 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         texture_name: "atlas.items",
         texture_data: {
             missing: {
-                textures: MISSING_TEXTURE
+                textures: "textures/blocks/sandstone_top"
             }
         }
     };
@@ -402,7 +404,7 @@ async function writeItems(predicateItems: ItemEntry[], sprites: SpriteSheet[], c
         }
 
         const geometry = await models.generateItemGeometry(item, sheet);
-        archives.insertRawInZip(convertedAssets, [{ file: `models/geyser_custom/${item.hash}.geo.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
+        archives.insertRawInZip(convertedAssets, [{ file: `models/entity/${item.hash}.geo.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
 
         const animation = await models.generateAnimation(item);
         archives.insertRawInZip(convertedAssets, [{ file: `animations/geyser_custom/${item.hash}.animation.json`, data: Buffer.from(JSON.stringify(animation)) }]);

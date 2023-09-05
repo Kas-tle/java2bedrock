@@ -482,8 +482,20 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 }
             }
 
-            const geometry = await models.generateBlockGeometry(hash, model);
-            archives.insertRawInZip(convertedAssets, [{ file: `models/blocks/geyser_custom/${hash}.geo.json`, data: Buffer.from(JSON.stringify(geometry)) }]);
+            const geometryObj = await models.generateBlockGeometry(hash, model);
+            archives.insertRawInZip(convertedAssets, [{ file: `models/blocks/geyser_custom/${hash}.geo.json`, data: Buffer.from(JSON.stringify(geometryObj.geo)) }]);
+
+            if (geometryObj.downscaled) {
+                const hitBox: GeyserMappings.Hitbox = {
+                    origin: [-4, 4, -4],
+                    size: [8, 8, 8]
+                };
+
+                builder
+                    .transformation({ scale: [2, 2, 2] })
+                    .collisionBox(hitBox)
+                    .selectionBox(hitBox);
+            }
 
             const components = builder
                 .geometry(`geometry.geyser_custom.geo_${hash}`)
@@ -499,8 +511,6 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
             statusMessage(MessageType.Critical, `Failed to block convert model ${modelPath}: ${error}`)
         }
     }
-
-    files.writeJsonFile('target/interim_block_mappings.json', interimBlockModelMap);
 
     const blockMappings: GeyserMappings.Blocks = {};
 
@@ -537,7 +547,7 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 builder.append(modelEntry.components);
 
                 if (states[0].x != null || states[0].y != null) {
-                    builder.transformation({ ...modelEntry.components.transformation, rotation: [states[0].x ?? 0, states[0].y ?? 0, 0] });
+                    builder.transformation({ ...modelEntry.components.transformation, rotation: [states[0].x ?? 0, - (states[0].y ?? 0), 0] });
                 }
             } else {
                 // We'll just have to use the first state
@@ -546,7 +556,7 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 builder.append(modelEntry.components);
 
                 if (state.x != null || state.y != null) {
-                    builder.transformation({ ...modelEntry.components.transformation, rotation: [state.x ?? 0, state.y ?? 0, 0] });
+                    builder.transformation({ ...modelEntry.components.transformation, rotation: [state.x ?? 0, - (state.y ?? 0), 0] });
                 }
             }
 
@@ -572,7 +582,7 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
 function assignCubeMaterialInstances(instances: Record<string, GeyserMappings.MaterialInstance>, builder: MaterialInstanceBuilder, model: BlockModel, cubeMap: CubeTextureMap, atlas: TerrainAtlas,
     inputAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[], movedTexturesArr: string[], interimBlockModelMap: InterimBlockModelMap, blockBuilder: BlockBuilder, modelPath: string, hash: string) {
     const textures = model.textures;
-    instances["*"] = builder.texture("missing").build();
+    instances["*"] = builder.texture("smooth_sandstone").build();
 
     if (textures != null) {
         let firstTexture: boolean = true;
