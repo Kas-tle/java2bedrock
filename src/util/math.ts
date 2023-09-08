@@ -59,10 +59,8 @@ export namespace matrix {
     
         return result;
     }
-}
 
-export namespace vector {
-    export function mul<T extends Vec>(m: Matrix, v: T): T {
+    export function mulVec<T extends Vec>(m: Matrix, v: T): T {
         let result: Vec = Array(m.length).fill(0);
     
         for(let i = 0; i < m.length; i++) {
@@ -72,6 +70,15 @@ export namespace vector {
         }
     
         return result as T;
+    }
+}
+
+export namespace vector {
+    export function mul<T extends Vec>(a: T, b: T | undefined): T {
+        if(b == null) {
+            return a;
+        }
+        return a.map((val, index) => val * b[index]) as T;
     }
 
     export function add<T extends Vec>(a: T, b: T | undefined): T {
@@ -93,7 +100,7 @@ export namespace rotation {
     export function z(theta: number): Matrix {
         return [
             [Math.cos(theta), Math.sin(theta), 0],  // Notice the sine is positive here
-            [-Math.sin(theta), Math.cos(theta), 0], // and negative here
+            [- Math.sin(theta), Math.cos(theta), 0], // and negative here
             [0,               0,                1]
         ];
     }
@@ -102,15 +109,15 @@ export namespace rotation {
         return [
             [Math.cos(theta),  0, Math.sin(theta)],
             [0,               1, 0              ],
-            [-Math.sin(theta), 0, Math.cos(theta)]
+            [- Math.sin(theta), 0, Math.cos(theta)]
         ];
     }
     
     export function x(theta: number): Matrix {
         return [
             [1, 0,               0              ],
-            [0, Math.cos(theta), -Math.sin(theta)],
-            [0, Math.sin(theta),  Math.cos(theta)]
+            [0, Math.cos(theta), Math.sin(theta)],
+            [0, - Math.sin(theta),  Math.cos(theta)]
         ];
     }
 }
@@ -129,7 +136,7 @@ export namespace euler {
         
             const translated = vector.sub(point, pivot);
             const rotationMatrix = matrix.mul(rotation.z(r.z), matrix.mul(rotation.y(r.y), rotation.x(r.x)));
-            const rotatedPoint = vector.mul(rotationMatrix, translated);
+            const rotatedPoint = matrix.mulVec(rotationMatrix, translated);
             const finalPosition = vector.add(rotatedPoint, pivot);
         
             // Translate back to pivot
@@ -147,7 +154,7 @@ export namespace euler {
         
             const translated = vector.sub(point, pivot);
             const rotationMatrix = matrix.mul(rotation.x(r.x), matrix.mul(rotation.y(r.y), rotation.z(r.z)));
-            const rotatedPoint = vector.mul(rotationMatrix, translated);
+            const rotatedPoint = matrix.mulVec(rotationMatrix, translated);
             const finalPosition = vector.add(rotatedPoint, pivot);
         
             // Translate back to pivot
@@ -155,3 +162,5 @@ export namespace euler {
         }
     }
 }
+
+// console.log(euler.zyx.rotatePoint(vector.add([3.9647, 10, -7.9459], [4, 4, 12]), [5.9647, 12, 2.0541], [45, 0, 0]));

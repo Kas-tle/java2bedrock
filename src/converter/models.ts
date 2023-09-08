@@ -507,10 +507,10 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
                     rc.pivot = c011r;
                     break outer;
                 case 270:
-                    rc.origin = math.vector.add<Vec3f>(c101r, [0, 0, - s[2]]);
+                    rc.pivot = c000r;
+                    rc.origin = math.vector.add<Vec3f>(rc.pivot, [0, 0, - s[1]]);
                     rc.size = [0, s[2], s[1]];
                     rc.rotation = math.vector.add<Vec3f>([270, 0, 0], r);
-                    rc.pivot = c000r;
                     break outer;
             }
         case 'west':
