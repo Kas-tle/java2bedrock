@@ -1,5 +1,6 @@
 import AdmZip from "adm-zip";
 import path from 'path';
+import detectTSNode from "detect-ts-node";
 import * as models from './models';
 import * as archives from '../util/archives';
 import * as files from '../util/files';
@@ -9,7 +10,7 @@ import minecraftData from 'minecraft-data'
 import { GeyserPredicateBuilder, ItemEntry } from "../types/converter/items";
 import { MessageType, statusMessage } from "../util/console";
 import { Mappings, MovedTexture } from "../types/mappings";
-import { createSpriteSheet } from "../util/atlases";
+import { createSpriteSheet, loadImages } from "../util/atlases";
 import { SpriteSheet } from "../types/util/atlases";
 import sharp from "sharp";
 import { Config } from "../util/config";
@@ -309,61 +310,81 @@ async function constructTextureSheets(predicateItems: ItemEntry[], inputAssets: 
 
     // Create sprite sheets from the atlases
     const sheets: SpriteSheet[] = [];
+    const numCPUs = detectTSNode ? Math.floor(os.cpus().length  / 3) : os.cpus().length - 2;
+    const multithreaded = numCPUs > 1;
     statusMessage(MessageType.Process, 'Creating item atlases...')
     const bar = progress.defaultBar();
     bar.start(atlases.length, 0, { prefix: 'Item Atlases' });
 
-    const numCPUs = os.cpus().length;
-    if (false) {
-        // Multi threaded (fix when I am smarter and have time)
-        const workers: Worker[] = [];
-        interface Result {
-            file: string,
-            data: Buffer,
-            sheet: SpriteSheet
-        }
-        const results: Result[] = [];
-        let finishedTasks = 0;
-
-        function handleWorkerMessage(result: Result) {
-            results.push(result);
-            finishedTasks++;
-
-            // Check if all tasks are done
-            if (finishedTasks === atlases.length) {
-                // Process the results
-                for (const result of results) {
-                    archives.insertRawInZip(convertedAssets, [{ file: result.file, data: result.data }]);
-                    sheets.push(result.sheet);
+    if (multithreaded) {
+        // Multi threaded
+        await (async () => {
+            const atlasWorkers: Worker[] = [];
+            interface Result {
+                file: string;
+                data: Buffer;
+                sheet: SpriteSheet;
+            }
+            const results: Result[] = [];
+            let finishedTasks = 0;
+    
+            let resolveAllTasksCompleted: () => void;
+            const allTasksCompleted = new Promise<void>((resolve) => {
+                resolveAllTasksCompleted = resolve;
+            });
+    
+            function handleWorkerMessage(result: Result) {
+                results.push(result);
+                finishedTasks++;
+                bar.increment();
+    
+                if (finishedTasks === atlases.length) {
+                    resolveAllTasksCompleted();
                 }
             }
-        }
-
-        // Create workers
-        for (let i = 0; i < numCPUs; i++) {
-            const worker = new Worker('../util/workers/atlases.js');
-            worker.on('message', handleWorkerMessage);
-            workers.push(worker);
-        }
-
-        // Distribute tasks among workers
-        atlases.forEach((atlas, index) => {
-            const hash = files.arrayHash(atlas);
-            const worker = workers[index % numCPUs];
+    
+            function handleError(error: any) {
+                console.error("Worker encountered an error:", error);
+                // handle error appropriately here
+                statusMessage(MessageType.Error, `Worker encountered an error on atlas generation: ${error}`);
+            }
+    
+            for (let i = 0; i < numCPUs; i++) {
+                const worker = files.importWorker('../util/workers/atlases', {});
+                worker.on('message', handleWorkerMessage);
+                worker.on('error', handleError);
+                atlasWorkers.push(worker);
+            }
+    
+            const tasks = atlases.map(async (atlas, index) => {
+                const hash = files.arrayHash(atlas);
+                const worker = atlasWorkers[index % numCPUs];
+                const images = await loadImages(inputAssets, atlas, defaultAssets);
             
-            worker.postMessage({
-                inputAssets: inputAssets,
-                defaultAssets: defaultAssets,
-                atlas: atlas,
-                outputPath: `textures/item_atlases/${hash}.png`
+                worker.postMessage({
+                    images,
+                    outputPath: `textures/item_atlases/${hash}.png`,
+                });
             });
-        });
+            
+            await Promise.all(tasks);
+    
+            await allTasksCompleted;
+    
+            // Process results here, after all tasks have completed
+            for (const result of results) {
+                archives.insertRawInZip(convertedAssets, [{ file: result.file, data: result.data }]);
+                sheets.push(result.sheet);
+                bar.stop();
+            }
+        })();
     } else {
         // Single threaded
         for (const atlas of atlases) {
             const hash = files.arrayHash(atlas);
             bar.update({ prefix: hash });
-            const sheet = await createSpriteSheet(inputAssets, defaultAssets, atlas, `textures/item_atlases/${hash}.png`);
+            const images = await loadImages(inputAssets, atlas, defaultAssets);
+            const sheet = await createSpriteSheet(images, `textures/item_atlases/${hash}.png`);
             archives.insertRawInZip(convertedAssets, [{ file: sheet.file, data: sheet.data }]);
             sheets.push(sheet.sheet);
             bar.increment();

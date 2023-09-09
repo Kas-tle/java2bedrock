@@ -4,8 +4,7 @@ import * as archives from './archives';
 import AdmZip from 'adm-zip';
 import { SpriteSheet, ImageData } from '../types/util/atlases';
 
-export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imagePaths: string[], outputPath: string): Promise<{sheet: SpriteSheet, file: string, data: Buffer}> {
-    const images = await loadImages(zip, imagePaths, fallbackZip);
+export async function createSpriteSheet(images: ImageData[], outputPath: string): Promise<{sheet: SpriteSheet, file: string, data: Buffer}> {
     const options = {
         smart: true,
         pot: true,
@@ -71,7 +70,7 @@ export async function createSpriteSheet(zip: AdmZip, fallbackZip: AdmZip, imageP
     return { sheet: output, file: outputPath, data: outputBuffer };
 }
 
-async function loadImages(zip: AdmZip, paths: string[], fallbackZip: AdmZip): Promise<ImageData[]> {
+export async function loadImages(zip: AdmZip, paths: string[], fallbackZip: AdmZip): Promise<ImageData[]> {
     const images = await Promise.all(paths.map(async (imgPath) => {
         let imgBuffer: Buffer;
         try {

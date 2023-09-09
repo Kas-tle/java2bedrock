@@ -4,7 +4,7 @@ import { createSpriteSheet } from '../atlases';
 if (!isMainThread && parentPort != null) {
     parentPort.on('message', async (data) => {
         if (parentPort == null) return;
-        const result = await createSpriteSheet(data.inputAssets, data.defaultAssets, data.atlas, data.outputPath);
+        const result = await createSpriteSheet(data.images, data.outputPath);
         parentPort.postMessage(result);
     });
 }

@@ -3,6 +3,7 @@ import path from 'path';
 import { getErrorMessage } from './error';
 import { MessageType, statusMessage } from './console';
 import * as crypto from 'crypto';
+import { Worker, WorkerOptions } from "worker_threads";
 
 export async function ensureDirectory(directory: string) {
     try {
@@ -163,4 +164,12 @@ export function sortedObject<T extends Record<string, any>>(unordered: T): T {
         {} as Partial<T>
     );
     return sorted as T;
+}
+
+export function importWorker(path: string, options: WorkerOptions) {
+    const resolvedPath = require.resolve(path);
+    return new Worker(resolvedPath, {
+        ...options,
+        execArgv: /\.ts$/.test(resolvedPath) ? ["--require", "ts-node/register"] : undefined,
+    });
 }
