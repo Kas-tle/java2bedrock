@@ -407,24 +407,37 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
     };
     (rc.uv as Geometry.PerFaceUV)[face] = uv;
 
+    const sumRotationXyz = (vec1: Vec3f, vec2: Vec3f | undefined): Vec3f => {
+        return math.euler.convert.xyzToZyx(math.vector.add<Vec3f>(vec1, vec2));
+    }
+
+    const sumRotation = (vec1: Vec3f, vec2: Vec3f | undefined): Vec3f => {
+        return math.vector.add<Vec3f>(vec1, vec2);
+    }
+
+    const sequentialRotation = (vec1: Vec3f, vec2: Vec3f | undefined): Vec3f => {
+        return math.euler.zyx.fromSeqential(vec1, vec2);
+    }
+
     outer: switch(face) {
         case 'up':
             switch(rotation) {
                 case 90:
                     rc.origin = math.vector.add<Vec3f>(c010r, [- s[2], 0, 0]);
                     rc.size = [s[2], 0, s[0]];
-                    rc.rotation = math.vector.add<Vec3f>([0, 90, 0], r);
+                    rc.rotation = sequentialRotation([0, 90, 0], r);
                     rc.pivot = c010r;
                     break outer;
                 case 180:
                     rc.origin = math.vector.add<Vec3f>(c011r, [- s[0], 0, 0]);
                     rc.size = [s[0], 0, s[2]];
-                    rc.rotation = math.vector.add<Vec3f>([0, 180, 0], r);
+                    rc.rotation = sequentialRotation([0, 180, 0], r);
                     rc.pivot = c011r;
+                    break outer;
                 case 270:
                     rc.origin = c110r;
                     rc.size = [s[2], 0, s[0]];
-                    rc.rotation = math.vector.add<Vec3f>([0, 270, 0], r);
+                    rc.rotation = sequentialRotation([0, 270, 0], r);
                     rc.pivot = c110r;
                     break outer;
             }
@@ -433,41 +446,40 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
                 case 90:
                     rc.origin = c100r;
                     rc.size = [s[2], 0, s[0]];
-                    rc.rotation = math.vector.add<Vec3f>([0, -90, 0], r);
+                    rc.rotation = sequentialRotation([0, -90, 0], r);
                     rc.pivot = c100r;
                     break outer;
                 case 180:
                     rc.origin = c101r;
                     rc.size = [s[0], 0, s[2]];
-                    rc.rotation = math.vector.add<Vec3f>([0, -180, 0], r);
+                    rc.rotation = sequentialRotation([0, -180, 0], r);
                     rc.pivot = c101r;
                     break outer;
                 case 270:
                     rc.origin = math.vector.add<Vec3f>(c000r, [- s[2], 0, 0]);
                     rc.size = [s[2], 0, s[0]];
-                    rc.rotation = math.vector.add<Vec3f>([0, -270, 0], r);
+                    rc.rotation = sequentialRotation([0, -270, 0], r);
                     rc.pivot = c000r;
                     break outer;
-
             }
         case 'north':
             switch(rotation) {
                 case 90:
                     rc.origin = math.vector.add<Vec3f>(c000r, [- s[1], 0, 0]);
                     rc.size = [s[1], s[0], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, 90], r);
+                    rc.rotation = sumRotationXyz([0, 0, 90], r);
                     rc.pivot = c000r;
                     break outer;
                 case 180:
                     rc.origin = math.vector.add<Vec3f>(c010r, [- s[0], 0, 0]);
                     rc.size = [s[0], s[1], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, 180], r);
+                    rc.rotation = sumRotationXyz([0, 0, 180], r);
                     rc.pivot = c010r;
                     break outer;
                 case 270:
                     rc.origin = c100r;
                     rc.size = [s[1], s[0], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, 270], r);
+                    rc.rotation = sumRotationXyz([0, 0, 270], r);
                     rc.pivot = c100r;
                     break outer;
             }
@@ -476,19 +488,19 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
                 case 90:
                     rc.origin = c101r;
                     rc.size = [s[1], s[0], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, -90], r);
+                    rc.rotation = sumRotationXyz([0, 0, -90], r);
                     rc.pivot = c101r;
                     break outer;
                 case 180:
                     rc.origin = c111r;
                     rc.size = [s[0], s[1], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, -180], r);
+                    rc.rotation = sumRotationXyz([0, 0, -180], r);
                     rc.pivot = c111r;
                     break outer;
                 case 270:
                     rc.origin = math.vector.add<Vec3f>(c001r, [- s[1], 0, 0]);
                     rc.size = [s[1], s[0], 0];
-                    rc.rotation = math.vector.add<Vec3f>([0, 0, -270], r);
+                    rc.rotation = sumRotationXyz([0, 0, -270], r);
                     rc.pivot = c001r;
                     break outer;
             }
@@ -497,20 +509,20 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
                 case 90:
                     rc.origin = c001r;
                     rc.size = [0, s[2], s[1]];
-                    rc.rotation = math.vector.add<Vec3f>([90, 0, 0], r);
+                    rc.rotation = sumRotation([90, 0, 0], r);
                     rc.pivot = c001r;
                     break outer;
                 case 180:
-                    rc.pivot = c011r;
+                    rc.origin = c011r;
                     rc.size = [0, s[1], s[2]];
-                    rc.rotation = math.vector.add<Vec3f>([180, 0, 0], r);
+                    rc.rotation = sumRotation([180, 0, 0], r);
                     rc.pivot = c011r;
                     break outer;
                 case 270:
                     rc.pivot = c000r;
                     rc.origin = math.vector.add<Vec3f>(rc.pivot, [0, 0, - s[1]]);
                     rc.size = [0, s[2], s[1]];
-                    rc.rotation = math.vector.add<Vec3f>([270, 0, 0], r);
+                    rc.rotation = sumRotation([270, 0, 0], r);
                     break outer;
             }
         case 'west':
@@ -518,19 +530,19 @@ function generateUvRotCube(cube: Geometry.Cube, rotation: 0 | 90 | 180 | 270, uv
                 case 90:
                     rc.origin = math.vector.add<Vec3f>(c100r, [0, 0, - s[1]]);
                     rc.size = [0, s[2], s[1]];
-                    rc.rotation = math.vector.add<Vec3f>([-90, 0, 0], r);
+                    rc.rotation = sumRotation([-90, 0, 0], r);
                     rc.pivot = c100r;
                     break outer;
                 case 180:
                     rc.origin = math.vector.add<Vec3f>(c110r, [0, 0, - s[2]]);
                     rc.size = [0, s[1], s[2]];
-                    rc.rotation = math.vector.add<Vec3f>([-180, 0, 0], r);
+                    rc.rotation = sumRotation([-180, 0, 0], r);
                     rc.pivot = c110r;
                     break outer;
                 case 270:
                     rc.origin = c101r;
                     rc.size = [0, s[2], s[1]];
-                    rc.rotation = math.vector.add<Vec3f>([-270, 0, 0], r);
+                    rc.rotation = sumRotation([-270, 0, 0], r);
                     rc.pivot = c101r;
                     break outer;
             }
