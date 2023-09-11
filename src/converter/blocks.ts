@@ -462,8 +462,8 @@ async function writeBlocks(variantGroups: VariantGroups, inputAssets: AdmZip, de
                 let firstTexture: boolean = true;
                 for (const [key, value] of Object.entries(model.textures)) {
                     const texturePath = files.pathFromTextureEntry(value);
-                    let bedrockTexturePath = files.bedrockPathFromTextureEntry(value);
                     const textureHash = files.stringHash(texturePath);
+                    let bedrockTexturePath = `textures/geyser_custom/${textureHash}.png`;
                     if (firstTexture || key === "particle") {
                         materialInstances["*"] = materialBuilder.texture(`g_${textureHash}`).build();
                     }

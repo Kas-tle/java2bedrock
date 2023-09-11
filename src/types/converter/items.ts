@@ -2,6 +2,9 @@ import { ItemModel, Model } from "../java/model";
 import { Range } from "../util"
 
 export interface ItemEntry {
+    elementsPath: string;
+    displayPath: string;
+    texturesPath: string;
     item: string;
     bedrock_icon?: string;
     overrides: GeyserPredicate;
@@ -9,9 +12,83 @@ export interface ItemEntry {
     model: ItemModel;
     sprite: boolean;
     hash: string;
-    textures: string[];
-    uniqueTextures: Set<string>;
-    bedrockTexture?: string;
+    textureKeyMap: Map<string, string[]>;
+    bedrockTexture: string;
+}
+
+export class ItemEntryBuilder {
+    private _entry: ItemEntry = {
+        elementsPath: "",
+        displayPath: "",
+        texturesPath: "",
+        item: "",
+        overrides: {},
+        path: "",
+        model: {},
+        sprite: false,
+        hash: "",
+        textureKeyMap: new Map(),
+        bedrockTexture: ""
+    };
+
+    elementsPath(value: string) {
+        this._entry.elementsPath = value;
+        return this;
+    }
+
+    displayPath(value: string) {
+        this._entry.displayPath = value;
+        return this;
+    }
+
+    texturesPath(value: string) {
+        this._entry.texturesPath = value;
+        return this;
+    }
+
+    item(value: string) {
+        this._entry.item = value;
+        return this;
+    }
+
+    overrides(value: GeyserPredicate) {
+        this._entry.overrides = value;
+        return this;
+    }
+
+    path(value: string) {
+        this._entry.path = value;
+        return this;
+    }
+
+    model(value: ItemModel) {
+        this._entry.model = value;
+        return this;
+    }
+
+    sprite(value: boolean) {
+        this._entry.sprite = value;
+        return this;
+    }
+
+    hash(value: string) {
+        this._entry.hash = value;
+        return this;
+    }
+
+    textureKeyMap(value: Map<string, string[]>) {
+        this._entry.textureKeyMap = value;
+        return this;
+    }
+
+    bedrockTexture(value: string) {
+        this._entry.bedrockTexture = value;
+        return this;
+    }
+
+    build(): ItemEntry {
+        return this._entry;
+    }
 }
 
 export interface GeyserPredicate extends Model.BasePredicate {

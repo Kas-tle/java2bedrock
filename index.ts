@@ -18,6 +18,7 @@ import { GeyserMappings } from './src/types/converter/mappings';
 async function main(): Promise<void> {
     // Needed for exit handler
     process.stdin.resume();
+    const startTime = Date.now();
 
     statusMessage(MessageType.Info, `Starting ${packageJson.name} v${packageJson.version}...`);
 
@@ -55,7 +56,8 @@ async function main(): Promise<void> {
     const itemCount = geyserMappings.items ? Object.values(geyserMappings.items).reduce((total, currentArray) => total + currentArray.length, 0) : 0;
     const blockCount = geyserMappings.blocks ? Object.values(geyserMappings.blocks).reduce((total, currentArray) => total + Object.values(currentArray).length, 0) : 0;
 
-    statusMessage(MessageType.Completion, `Conversion complete for ${itemCount} items and ${blockCount} blocks`);
+    const completionTime = (Date.now() - startTime) / 1000;
+    statusMessage(MessageType.Completion, `Conversion complete for ${itemCount} items and ${blockCount} blocks in ${completionTime}s`);
     return;
 }
 

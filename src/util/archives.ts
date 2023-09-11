@@ -17,6 +17,11 @@ export function listFilePathsInZip(zip: AdmZip, targetFolder: string, extension:
     return filePaths;
 }
 
+export function fileInZip(zip: AdmZip, filePath: string): boolean {
+    const entry = zip.getEntry(filePath);
+    return entry != null;
+}
+
 export function subZip(sourceZip: AdmZip, folder: string): AdmZip {
     // Read the source zip file
     const sourceEntries = sourceZip.getEntries();
