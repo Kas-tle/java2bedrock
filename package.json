@@ -30,7 +30,7 @@
         "cli-progress": "^3.12.0",
         "detect-ts-node": "^1.0.5",
         "maxrects-packer": "^2.7.3",
-        "minecraft-data": "^3.40.0",
+        "minecraft-data": "^3.49.0",
         "minecraft-folder-path": "^1.2.0",
         "sharp": "^0.32.4"
     }

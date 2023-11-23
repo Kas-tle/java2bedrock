@@ -323,20 +323,19 @@ function handleSpecialPredicates(item: string, version: string, builder: GeyserP
 }
 
 async function writeAnimations(predicateItems: ItemEntry[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip): Promise<void> {
-    const displayPaths = new Set(predicateItems.map(i => i.displayPath));
-
-    for (const path of displayPaths) {
+    for (const item of predicateItems) {
         try {
-            const model = await archives.parseJsonFromZip<ItemModel>(inputAssets, path, defaultAssets);
-            const pathHash = files.stringHash(path);
-            const animation = await models.generateAnimation(model.display, pathHash);
+            const model = await archives.parseJsonFromZip<ItemModel>(inputAssets, item.path, defaultAssets);
+            const pathHash = files.stringHash(item.path);
+            const textureHashes = [...item.textureKeyMap.keys()].map(t => files.stringHash(t));
+            const animation = await models.generateAnimation(model.display, pathHash, textureHashes);
             archives.insertRawInZip(convertedAssets, [{ file: `animations/geyser_custom/${pathHash}.animation.json`, data: Buffer.from(JSON.stringify(animation)) }]);
         } catch (error) {
             statusMessage(MessageType.Critical, `Failed to parse display ${path}: ${error}`);
         }
     }
 
-    statusMessage(MessageType.Completion, `Inserted ${displayPaths.size} animations`);
+    statusMessage(MessageType.Completion, `Inserted ${predicateItems.length} animations`);
 }
 
 async function writeTextures(predicateItems: ItemEntry[], inputAssets: AdmZip, defaultAssets: AdmZip, convertedAssets: AdmZip, movedTextures: MovedTexture[]): Promise<void> {
@@ -424,12 +423,8 @@ async function writeItems(predicateItems: ItemEntry[], convertedAssets: AdmZip, 
             archives.insertRawInZip(convertedAssets, [{ file: `render_controllers/geyser_custom/${item.hash}.render_controllers.json`, data: Buffer.from(JSON.stringify(renderController)) }]);
 
             const geoHash = files.stringHash(item.elementsPath);
-            const rootGeometry = await models.generateRootItemGeometry(geoHash);
-            archives.insertRawInZip(convertedAssets, [{ file: `models/entity/geyser_custom/${geoHash}.geo.json`, data: Buffer.from(JSON.stringify(rootGeometry)) }]);
-            geometries[`g_${geoHash}`] = `geometry.geyser_custom.${geoHash}`;
 
-            controllers.push(`controller.render.geyser_custom.${geoHash}`);
-            controllers.push(...Object.keys(renderController.render_controllers).filter(c => c != `controller.render.geyser_custom.${geoHash}`));
+            controllers.push(...Object.keys(renderController.render_controllers));
 
             for (const [texture] of item.textureKeyMap) {
                 const textureHash = files.stringHash(texture);

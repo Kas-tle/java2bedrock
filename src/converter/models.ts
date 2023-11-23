@@ -12,20 +12,20 @@ import AdmZip from 'adm-zip';
 import { Vec3f } from '../types/util';
 import { RenderController } from '../types/bedrock/rendercontroller';
 
-export async function generateAnimation(display: Model.DisplaySettings | undefined, hash: string): Promise<Animation> {
+export async function generateAnimation(display: Model.DisplaySettings | undefined, hash: string, textureHashes: string[]): Promise<Animation> {
     const animation: Animation = {
         format_version: "1.8.0",
         animations: {
             [`animation.geyser_custom.${hash}.thirdperson_main_hand`]:
-                await generateSlotAnimation(display, 'thirdperson_righthand', { baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
+                await generateSlotAnimation(display, textureHashes, 'thirdperson_righthand', { baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
             [`animation.geyser_custom.${hash}.thirdperson_off_hand`]:
-                await generateSlotAnimation(display, 'thirdperson_lefthand', { invertXPos: true, baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
+                await generateSlotAnimation(display, textureHashes, 'thirdperson_lefthand', { invertXPos: true, baseAnimation: { rotation: [90, 0, 0], position: [0, 13, -3] } }),
             [`animation.geyser_custom.${hash}.head`]:
-                await generateSlotAnimation(display, 'head', { baseScale: 0.625, baseAnimation: { position: [0, 19.9, 0] } }),
+                await generateSlotAnimation(display, textureHashes, 'head', { baseScale: 0.625, baseAnimation: { position: [0, 19.9, 0] } }),
             [`animation.geyser_custom.${hash}.firstperson_main_hand`]:
-                await generateSlotAnimation(display, 'firstperson_righthand', { baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
+                await generateSlotAnimation(display, textureHashes, 'firstperson_righthand', { baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
             [`animation.geyser_custom.${hash}.firstperson_off_hand`]:
-                await generateSlotAnimation(display, 'firstperson_lefthand', { invertXPos: true, baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
+                await generateSlotAnimation(display, textureHashes, 'firstperson_lefthand', { invertXPos: true, baseRotation: [0.1, 0.1, 0.1], baseAnimation: { rotation: [90, 60, -40], position: [4, 10, 4], scale: 1.5 } }),
         }
     };
 
@@ -52,6 +52,7 @@ export async function generateBaseAnimations(convertedAssets: AdmZip) {
 
 async function generateSlotAnimation(
     inpDisplay: Model.DisplaySettings | undefined,
+    textureHashes: string[],
     animationKey: keyof Model.DisplaySettings,
     params: {
         baseAnimation?: Animation.Bone,
@@ -61,30 +62,38 @@ async function generateSlotAnimation(
     } = {}): Promise<Animation.Animation> {
     const display = inpDisplay ? inpDisplay[animationKey] : undefined;
     const { baseAnimation, baseRotation, baseScale, invertXPos } = params;
+
+    const bones: Record<string, any> = {};
+
+    textureHashes.forEach(hash => {
+        bones[`geyser_custom_x_${hash}`] = display ? {
+            rotation: display.rotation ? [math.tenKRound(- display.rotation[0]), 0, 0] : baseRotation,
+            position: display.translation ? [
+                math.tenKRound(- display.translation[0] * (invertXPos ? -1 : 1)),
+                math.tenKRound(display.translation[1]),
+                math.tenKRound(display.translation[2])
+            ] : undefined,
+            scale: display.scale ? [
+                math.tenKRound(display.scale[0] * (baseScale ?? 1)),
+                math.tenKRound(display.scale[1] * (baseScale ?? 1)),
+                math.tenKRound(display.scale[2] * (baseScale ?? 1))
+            ] : baseScale,
+        } : undefined;
+
+        bones[`geyser_custom_y_${hash}`] = display ? {
+            rotation: display.rotation ? [0, math.tenKRound(- display.rotation[1]), 0] : undefined,
+        } : undefined;
+
+        bones[`geyser_custom_z_${hash}`] = display ? {
+            rotation: display.rotation ? [0, 0, math.tenKRound(display.rotation[2])] : undefined,
+        } : undefined;
+
+        bones[`geyser_custom_${hash}`] = baseAnimation;
+    });
+
     return {
         loop: true,
-        bones: {
-            geyser_custom_x: display ? {
-                rotation: display.rotation ? [math.tenKRound(- display.rotation[0]), 0, 0] : baseRotation,
-                position: display.translation ? [
-                    math.tenKRound(- display.translation[0] * (invertXPos ? -1 : 1)),
-                    math.tenKRound(display.translation[1]),
-                    math.tenKRound(display.translation[2])
-                ] : undefined,
-                scale: display.scale ? [
-                    math.tenKRound(display.scale[0] * (baseScale ?? 1)),
-                    math.tenKRound(display.scale[1] * (baseScale ?? 1)),
-                    math.tenKRound(display.scale[2] * (baseScale ?? 1))
-                ] : baseScale,
-            } : undefined,
-            geyser_custom_y: display ? {
-                rotation: display.rotation ? [0, math.tenKRound(- display.rotation[1]), 0] : undefined,
-            } : undefined,
-            geyser_custom_z: display ? {
-                rotation: display.rotation ? [0, 0, math.tenKRound(display.rotation[2])] : undefined,
-            } : undefined,
-            geyser_custom: baseAnimation
-        }
+        bones: bones
     };
 }
 
@@ -99,7 +108,7 @@ export async function generateAttachable(item: ItemEntry, attachableMaterial: Co
                     default: attachableMaterial ?? 'entity_alphatest_one_sided',
                     enchanted: attachableMaterial ?? 'entity_alphatest_one_sided',
                 },
-                textures,
+                textures: { ...textures, "echanted": "textures/misc/enchanted_item_glint" },
                 geometry: geometries,
                 scripts: {
                     pre_animation: [
@@ -146,7 +155,7 @@ export async function generateRenderController(item: ItemEntry): Promise<RenderC
                 `Texture.t_${textureHash}`
             ],
             materials: [
-                { 
+                {
                     "*": "variable.is_enchanted ? material.enchanted : material.default"
                 }
             ]
@@ -154,68 +163,59 @@ export async function generateRenderController(item: ItemEntry): Promise<RenderC
         renderController.render_controllers[`controller.render.geyser_custom.${geoHash}.${textureHash}`] = controller;
     }
 
-    const rootController: RenderController.Controller = {
-        geometry: `Geometry.g_${geoHash}`
-    };
-    renderController.render_controllers[`controller.render.geyser_custom.${geoHash}`] = rootController;
-
     return renderController;
 }
 
 export async function generateSpriteItemGeometry(): Promise<Geometry> {
     const textureMeshes: Geometry.TextureMesh[] = [{ texture: "default", position: [0, 8, 0], rotation: [90, 0, -180], local_pivot: [8, 0.5, 8] }];
-    return generateGeometry(`geometry.geyser_custom.sprite`, undefined, false, textureMeshes, "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)");
-}
-
-export async function generateRootItemGeometry(geoHash: string): Promise<Geometry> {
-    return generateGeometry(`geometry.geyser_custom.${geoHash}`, undefined, false, undefined, "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)");
+    return generateGeometry(`geometry.geyser_custom.sprite`, undefined, textureMeshes, "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)");
 }
 
 export async function generateItemGeometry(elements: Model.Element[] | undefined, textureKeys: string[], geoHash: string, textureHash: string): Promise<Geometry> {
-    return generateGeometry(`geometry.geyser_custom.${geoHash}.${textureHash}`, await generateItemCubes(elements, textureKeys), false);
+    return generateGeometry(`geometry.geyser_custom.${geoHash}.${textureHash}`, await generateItemCubes(elements, textureKeys), undefined, "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)", textureHash);
 }
 
 export async function generateBlockGeometry(hash: string, model: BlockModel): Promise<{ geo: Geometry, downscaled: boolean }> {
     const cubesObj = await generateBlockCubes(model);
     return {
-        geo: generateGeometry(`geometry.geyser_custom.geo_${hash}`, cubesObj.cubes), 
+        geo: generateGeometry(`geometry.geyser_custom.geo_${hash}`, cubesObj.cubes),
         downscaled: cubesObj.downscaled
     };
 }
 
-function generateGeometry(identifier: string, cubes: Geometry.Cube[] | undefined, shortTree: boolean = false, texture_meshes: Geometry.TextureMesh[] | undefined = undefined, binding: string | undefined = undefined): Geometry {
-    const bones: Geometry.Bone[] = shortTree ? [
+function generateGeometry(
+    identifier: string,
+    cubes: Geometry.Cube[] | undefined,
+    texture_meshes: Geometry.TextureMesh[] | undefined = undefined,
+    binding: string | undefined = undefined,
+    hash: string | undefined = undefined
+): Geometry {
+    const suffix = hash ? `_${hash}` : '';
+    const bones: Geometry.Bone[] = [
         {
-            name: "geyser_custom_child",
-            binding: "'geyser_custom_z'",
-            cubes,
-            texture_meshes
-        }
-    ] : [
-        {
-            name: "geyser_custom",
+            name: "geyser_custom" + suffix,
             binding,
             pivot: [0, 8, 0]
         },
         {
-            name: "geyser_custom_x",
-            parent: "geyser_custom",
+            name: "geyser_custom_x" + suffix,
+            parent: "geyser_custom" + suffix,
             pivot: [0, 8, 0]
         },
         {
-            name: "geyser_custom_y",
-            parent: "geyser_custom_x",
+            name: "geyser_custom_y" + suffix,
+            parent: "geyser_custom_x" + suffix,
             pivot: [0, 8, 0]
         },
         {
-            name: "geyser_custom_z",
-            parent: "geyser_custom_y",
+            name: "geyser_custom_z" + suffix,
+            parent: "geyser_custom_y" + suffix,
             pivot: [0, 8, 0],
             cubes,
             texture_meshes
         }
     ];
-    
+
     return {
         format_version: "1.16.0",
         "minecraft:geometry": [{
